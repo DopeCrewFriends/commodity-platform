@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CommodityX - Escrow Platform</title>
+    <script>
+        // Load theme immediately to prevent flash
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+    </script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Connect Wallet Modal -->
+    <div class="wallet-modal" id="walletModal">
+        <div class="wallet-modal-overlay"></div>
+        <div class="wallet-modal-content">
+            <div class="wallet-modal-header">
+                <h2>Connect Your Wallet</h2>
+                <p>Connect your wallet to access the CommodityX escrow platform</p>
+            </div>
+            <div class="wallet-options">
+                <button class="wallet-option" data-wallet="metamask">
+                    <div class="wallet-icon">🦊</div>
+                    <div class="wallet-info">
+                        <h3>MetaMask</h3>
+                        <p>Connect using MetaMask wallet</p>
+                    </div>
+                    <div class="wallet-arrow">→</div>
+                </button>
+                <button class="wallet-option" data-wallet="walletconnect">
+                    <div class="wallet-icon">🔗</div>
+                    <div class="wallet-info">
+                        <h3>WalletConnect</h3>
+                        <p>Connect using WalletConnect</p>
+                    </div>
+                    <div class="wallet-arrow">→</div>
+                </button>
+                <button class="wallet-option" data-wallet="coinbase">
+                    <div class="wallet-icon">💼</div>
+                    <div class="wallet-info">
+                        <h3>Coinbase Wallet</h3>
+                        <p>Connect using Coinbase Wallet</p>
+                    </div>
+                    <div class="wallet-arrow">→</div>
+                </button>
+                <button class="wallet-option" data-wallet="trust">
+                    <div class="wallet-icon">🛡️</div>
+                    <div class="wallet-info">
+                        <h3>Trust Wallet</h3>
+                        <p>Connect using Trust Wallet</p>
+                    </div>
+                    <div class="wallet-arrow">→</div>
+                </button>
+            </div>
+            <div class="wallet-modal-footer">
+                <p class="wallet-disclaimer">By connecting, you agree to our Terms of Service and Privacy Policy</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <h2>CommodityX</h2>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="#profile" class="nav-active">Profile</a></li>
+            </ul>
+            <div class="nav-right">
+                <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
+                    <span class="theme-icon">🌙</span>
+                </button>
+                <button class="btn btn-primary connect-wallet-btn" id="connectWalletBtn">
+                    Connect Wallet
+                </button>
+                <div class="wallet-address" id="walletAddress" style="display: none;">
+                    <span class="address-text">0x1234...5678</span>
+                </div>
+            </div>
+            <button class="nav-toggle" id="navToggle">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Profile -->
+    <main class="portfolio-dashboard" id="profile">
+        <div class="container">
+            <!-- Profile Details Section -->
+            <div class="profile-section" id="profileCard">
+                <div class="profile-header">
+                    <div class="profile-avatar">
+                        <div class="avatar-placeholder">JD</div>
+                    </div>
+                    <div class="profile-info">
+                        <h1 class="profile-name">John Doe</h1>
+                        <p class="profile-email">john.doe@example.com</p>
+                        <div class="profile-company">
+                            <span class="company-label">Company:</span>
+                            <span class="company-name">Global Commodities Trading LLC</span>
+                        </div>
+                        <div class="profile-location">
+                            <span class="location-label">📍</span>
+                            <span class="location-text">New York, USA • London, UK</span>
+                        </div>
+                        <div class="profile-wallet">
+                            <span class="wallet-label">Wallet:</span>
+                            <span class="wallet-address-text" id="profileWalletAddress">0x1234...5678</span>
+                        </div>
+                    </div>
+                    <div class="profile-actions">
+                        <button class="btn btn-primary" id="editProfileBtn">
+                            <span>✏️</span>
+                            Edit Profile
+                        </button>
+                    </div>
+                </div>
+                <div class="profile-stats">
+                    <div class="profile-stat-item">
+                        <div class="stat-value">Member Since</div>
+                        <div class="stat-label">Jan 2024</div>
+                    </div>
+                    <div class="profile-stat-item">
+                        <div class="stat-value">Completed Trades</div>
+                        <div class="stat-label">27</div>
+                    </div>
+                    <div class="profile-stat-item">
+                        <div class="stat-value">Total Volume</div>
+                        <div class="stat-label">$125,450.00</div>
+                    </div>
+                    <div class="profile-stat-item">
+                        <div class="stat-value">Success Rate</div>
+                        <div class="stat-label">96%</div>
+                    </div>
+                    <div class="profile-stat-item">
+                        <div class="stat-value">Rating</div>
+                        <div class="stat-label">⭐ 4.8/5.0</div>
+                    </div>
+                </div>
+                
+                <!-- Completed Trades Dropdown -->
+                <div class="trade-partners-dropdown" id="tradePartnersDropdown">
+                    <div class="dropdown-header">
+                        <h3>Trade History</h3>
+                        <div class="trade-filters">
+                            <button class="filter-btn active" data-filter="completed">Completed</button>
+                            <button class="filter-btn" data-filter="ongoing">Ongoing</button>
+                            <button class="filter-btn" data-filter="unsuccessful">Unsuccessful</button>
+                        </div>
+                        <span class="dropdown-arrow">▼</span>
+                    </div>
+                    <div class="trade-partners-list" id="tradePartnersList">
+                        <!-- Completed Trades -->
+                        <div class="trade-item completed" data-trade-id="1">
+                            <div class="trade-profiles">
+                                <div class="profile-badge buyer">
+                                    <div class="profile-avatar-small">JD</div>
+                                    <span class="profile-role">Buyer</span>
+                                </div>
+                                <div class="trade-arrow">↔</div>
+                                <div class="profile-badge seller">
+                                    <div class="profile-avatar-small">AC</div>
+                                    <span class="profile-role">Seller</span>
+                                </div>
+                            </div>
+                            <div class="trade-details">
+                                <h4 class="trade-commodity">Crude Oil - 1,000 barrels</h4>
+                                <div class="trade-meta">
+                                    <span class="trade-amount">$85,000.00</span>
+                                    <span class="trade-duration">⏱️ 3 days</span>
+                                </div>
+                                <p class="trade-date">Completed: Jan 15, 2024</p>
+                            </div>
+                        </div>
+                        <div class="trade-item completed" data-trade-id="2">
+                            <div class="trade-profiles">
+                                <div class="profile-badge seller">
+                                    <div class="profile-avatar-small">JD</div>
+                                    <span class="profile-role">Seller</span>
+                                </div>
+                                <div class="trade-arrow">↔</div>
+                                <div class="profile-badge buyer">
+                                    <div class="profile-avatar-small">RB</div>
+                                    <span class="profile-role">Buyer</span>
+                                </div>
+                            </div>
+                            <div class="trade-details">
+                                <h4 class="trade-commodity">Gold - 50 oz</h4>
+                                <div class="trade-meta">
+                                    <span class="trade-amount">$98,500.00</span>
+                                    <span class="trade-duration">⏱️ 5 days</span>
+                                </div>
+                                <p class="trade-date">Completed: Jan 10, 2024</p>
+                            </div>
+                        </div>
+                        <div class="trade-item completed" data-trade-id="3">
+                            <div class="trade-profiles">
+                                <div class="profile-badge buyer">
+                                    <div class="profile-avatar-small">JD</div>
+                                    <span class="profile-role">Buyer</span>
+                                </div>
+                                <div class="trade-arrow">↔</div>
+                                <div class="profile-badge seller">
+                                    <div class="profile-avatar-small">MS</div>
+                                    <span class="profile-role">Seller</span>
+                                </div>
+                            </div>
+                            <div class="trade-details">
+                                <h4 class="trade-commodity">Wheat - 5,000 bushels</h4>
+                                <div class="trade-meta">
+                                    <span class="trade-amount">$32,500.00</span>
+                                    <span class="trade-duration">⏱️ 2 days</span>
+                                </div>
+                                <p class="trade-date">Completed: Jan 8, 2024</p>
+                            </div>
+                        </div>
+                        <div class="trade-item completed" data-trade-id="4">
+                            <div class="trade-profiles">
+                                <div class="profile-badge seller">
+                                    <div class="profile-avatar-small">JD</div>
+                                    <span class="profile-role">Seller</span>
+                                </div>
+                                <div class="trade-arrow">↔</div>
+                                <div class="profile-badge buyer">
+                                    <div class="profile-avatar-small">JK</div>
+                                    <span class="profile-role">Buyer</span>
+                                </div>
+                            </div>
+                            <div class="trade-details">
+                                <h4 class="trade-commodity">Copper - 10,000 lbs</h4>
+                                <div class="trade-meta">
+                                    <span class="trade-amount">$42,300.00</span>
+                                    <span class="trade-duration">⏱️ 4 days</span>
+                                </div>
+                                <p class="trade-date">Completed: Jan 5, 2024</p>
+                            </div>
+                        </div>
+                        <div class="trade-item completed" data-trade-id="5">
+                            <div class="trade-profiles">
+                                <div class="profile-badge buyer">
+                                    <div class="profile-avatar-small">JD</div>
+                                    <span class="profile-role">Buyer</span>
+                                </div>
+                                <div class="trade-arrow">↔</div>
+                                <div class="profile-badge seller">
+                                    <div class="profile-avatar-small">ET</div>
+                                    <span class="profile-role">Seller</span>
+                                </div>
+                            </div>
+                            <div class="trade-details">
+                                <h4 class="trade-commodity">Natural Gas - 50,000 MMBtu</h4>
+                                <div class="trade-meta">
+                                    <span class="trade-amount">$125,000.00</span>
+                                    <span class="trade-duration">⏱️ 6 days</span>
+                                </div>
+                                <p class="trade-date">Completed: Dec 28, 2023</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Ongoing Trades -->
+                        <div class="trade-item ongoing" data-trade-id="6" style="display: none;">
+                            <div class="trade-profiles">
+                                <div class="profile-badge buyer">
+                                    <div class="profile-avatar-small">JD</div>
+                                    <span class="profile-role">Buyer</span>
+                                </div>
+                                <div class="trade-arrow">↔</div>
+                                <div class="profile-badge seller">
+                                    <div class="profile-avatar-small">AC</div>
+                                    <span class="profile-role">Seller</span>
+                                </div>
+                            </div>
+                            <div class="trade-details">
+                                <h4 class="trade-commodity">Silver - 200 oz</h4>
+                                <div class="trade-meta">
+                                    <span class="trade-amount">$48,000.00</span>
+                                    <span class="trade-duration">⏱️ Day 2 of 5</span>
+                                </div>
+                                <p class="trade-date">Started: Jan 18, 2024</p>
+                            </div>
+                        </div>
+                        <div class="trade-item ongoing" data-trade-id="7" style="display: none;">
+                            <div class="trade-profiles">
+                                <div class="profile-badge seller">
+                                    <div class="profile-avatar-small">JD</div>
+                                    <span class="profile-role">Seller</span>
+                                </div>
+                                <div class="trade-arrow">↔</div>
+                                <div class="profile-badge buyer">
+                                    <div class="profile-avatar-small">RB</div>
+                                    <span class="profile-role">Buyer</span>
+                                </div>
+                            </div>
+                            <div class="trade-details">
+                                <h4 class="trade-commodity">Coffee - 10,000 lbs</h4>
+                                <div class="trade-meta">
+                                    <span class="trade-amount">$28,500.00</span>
+                                    <span class="trade-duration">⏱️ Day 1 of 4</span>
+                                </div>
+                                <p class="trade-date">Started: Jan 19, 2024</p>
+                            </div>
+                        </div>
+                        <div class="trade-item ongoing" data-trade-id="8" style="display: none;">
+                            <div class="trade-profiles">
+                                <div class="profile-badge buyer">
+                                    <div class="profile-avatar-small">JD</div>
+                                    <span class="profile-role">Buyer</span>
+                                </div>
+                                <div class="trade-arrow">↔</div>
+                                <div class="profile-badge seller">
+                                    <div class="profile-avatar-small">JK</div>
+                                    <span class="profile-role">Seller</span>
+                                </div>
+                            </div>
+                            <div class="trade-details">
+                                <h4 class="trade-commodity">Platinum - 30 oz</h4>
+                                <div class="trade-meta">
+                                    <span class="trade-amount">$92,000.00</span>
+                                    <span class="trade-duration">⏱️ Day 3 of 7</span>
+                                </div>
+                                <p class="trade-date">Started: Jan 17, 2024</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Unsuccessful Trades -->
+                        <div class="trade-item unsuccessful" data-trade-id="9" style="display: none;">
+                            <div class="trade-profiles">
+                                <div class="profile-badge buyer">
+                                    <div class="profile-avatar-small">JD</div>
+                                    <span class="profile-role">Buyer</span>
+                                </div>
+                                <div class="trade-arrow">↔</div>
+                                <div class="profile-badge seller">
+                                    <div class="profile-avatar-small">MS</div>
+                                    <span class="profile-role">Seller</span>
+                                </div>
+                            </div>
+                            <div class="trade-details">
+                                <h4 class="trade-commodity">Soybeans - 8,000 bushels</h4>
+                                <div class="trade-meta">
+                                    <span class="trade-amount">$38,000.00</span>
+                                    <span class="trade-duration">⏱️ Cancelled after 4 days</span>
+                                </div>
+                                <p class="trade-date">Cancelled: Dec 15, 2023</p>
+                            </div>
+                        </div>
+                        <div class="trade-item unsuccessful" data-trade-id="10" style="display: none;">
+                            <div class="trade-profiles">
+                                <div class="profile-badge seller">
+                                    <div class="profile-avatar-small">JD</div>
+                                    <span class="profile-role">Seller</span>
+                                </div>
+                                <div class="trade-arrow">↔</div>
+                                <div class="profile-badge buyer">
+                                    <div class="profile-avatar-small">ET</div>
+                                    <span class="profile-role">Buyer</span>
+                                </div>
+                            </div>
+                            <div class="trade-details">
+                                <h4 class="trade-commodity">Corn - 12,000 bushels</h4>
+                                <div class="trade-meta">
+                                    <span class="trade-amount">$42,000.00</span>
+                                    <span class="trade-duration">⏱️ Disputed after 6 days</span>
+                                </div>
+                                <p class="trade-date">Disputed: Nov 22, 2023</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Escrows Section -->
+            <div class="active-escrows-section">
+                <div class="escrows-header-card" id="escrowsHeaderCard">
+                    <div class="escrows-header-content">
+                        <div class="escrows-title-section">
+                            <h2>Active Escrows</h2>
+                            <div class="escrows-total">
+                                <span class="total-label">Total in Escrow</span>
+                                <span class="total-amount" id="totalEscrowValue">$86,020.00</span>
+                            </div>
+                        </div>
+                        <span class="escrows-dropdown-arrow">▼</span>
+                    </div>
+                    
+                    <!-- Active Escrows Dropdown -->
+                    <div class="active-escrows-dropdown" id="activeEscrowsDropdown">
+                        <div class="active-escrows-list" id="activeEscrowsList">
+                            <div class="active-escrow-item" data-escrow-id="1">
+                                <div class="escrow-profiles">
+                                    <div class="profile-badge buyer">
+                                        <div class="profile-avatar-small">JD</div>
+                                        <span class="profile-role">Buyer</span>
+                                    </div>
+                                    <div class="trade-arrow">↔</div>
+                                    <div class="profile-badge seller">
+                                        <div class="profile-avatar-small">AC</div>
+                                        <span class="profile-role">Seller</span>
+                                    </div>
+                                </div>
+                                <div class="escrow-details">
+                                    <h4 class="escrow-commodity">Crude Oil - 500 barrels</h4>
+                                    <div class="escrow-meta">
+                                        <span class="escrow-amount">$45,230.00</span>
+                                        <span class="escrow-status pending">Pending</span>
+                                    </div>
+                                    <p class="escrow-date">Started: Jan 20, 2024</p>
+                                </div>
+                            </div>
+                            <div class="active-escrow-item" data-escrow-id="2">
+                                <div class="escrow-profiles">
+                                    <div class="profile-badge seller">
+                                        <div class="profile-avatar-small">JD</div>
+                                        <span class="profile-role">Seller</span>
+                                    </div>
+                                    <div class="trade-arrow">↔</div>
+                                    <div class="profile-badge buyer">
+                                        <div class="profile-avatar-small">RB</div>
+                                        <span class="profile-role">Buyer</span>
+                                    </div>
+                                </div>
+                                <div class="escrow-details">
+                                    <h4 class="escrow-commodity">Gold - 25 oz</h4>
+                                    <div class="escrow-meta">
+                                        <span class="escrow-amount">$28,450.00</span>
+                                        <span class="escrow-status in-progress">In Progress</span>
+                                    </div>
+                                    <p class="escrow-date">Started: Jan 19, 2024</p>
+                                </div>
+                            </div>
+                            <div class="active-escrow-item" data-escrow-id="3">
+                                <div class="escrow-profiles">
+                                    <div class="profile-badge buyer">
+                                        <div class="profile-avatar-small">JD</div>
+                                        <span class="profile-role">Buyer</span>
+                                    </div>
+                                    <div class="trade-arrow">↔</div>
+                                    <div class="profile-badge seller">
+                                        <div class="profile-avatar-small">MS</div>
+                                        <span class="profile-role">Seller</span>
+                                    </div>
+                                </div>
+                                <div class="escrow-details">
+                                    <h4 class="escrow-commodity">Wheat - 2,500 bushels</h4>
+                                    <div class="escrow-meta">
+                                        <span class="escrow-amount">$12,340.00</span>
+                                        <span class="escrow-status pending">Pending</span>
+                                    </div>
+                                    <p class="escrow-date">Started: Jan 21, 2024</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Content Grid -->
+            <div class="portfolio-grid">
+                <!-- Transaction Overview Section -->
+                <div class="portfolio-section chart-section">
+                    <div class="section-header">
+                        <h2>Transaction Overview</h2>
+                        <div class="chart-controls">
+                            <button class="chart-btn active">7D</button>
+                            <button class="chart-btn">30D</button>
+                            <button class="chart-btn">90D</button>
+                            <button class="chart-btn">All</button>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-placeholder">
+                            <p>Transaction volume over time</p>
+                            <div class="chart-bars">
+                                <div class="bar" style="height: 40%"></div>
+                                <div class="bar" style="height: 60%"></div>
+                                <div class="bar" style="height: 45%"></div>
+                                <div class="bar" style="height: 70%"></div>
+                                <div class="bar" style="height: 55%"></div>
+                                <div class="bar" style="height: 80%"></div>
+                                <div class="bar" style="height: 65%"></div>
+                                <div class="bar" style="height: 75%"></div>
+                                <div class="bar" style="height: 90%"></div>
+                                <div class="bar" style="height: 85%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Transactions -->
+                <div class="portfolio-section activity-section">
+                    <div class="section-header">
+                        <h2>Recent Transactions</h2>
+                        <button class="btn btn-secondary btn-sm">View All</button>
+                    </div>
+                    <div class="activity-list" id="activityList">
+                        <div class="activity-item">
+                            <div class="activity-icon buy">✅</div>
+                            <div class="activity-details">
+                                <h4>Escrow Completed</h4>
+                                <p class="activity-time">2 hours ago</p>
+                            </div>
+                            <div class="activity-amount">
+                                <div class="amount">Escrow #1232</div>
+                                <div class="price">$45,230.00</div>
+                            </div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="activity-icon sell">🔒</div>
+                            <div class="activity-details">
+                                <h4>Escrow Created</h4>
+                                <p class="activity-time">5 hours ago</p>
+                            </div>
+                            <div class="activity-amount">
+                                <div class="amount">Escrow #1234</div>
+                                <div class="price">$28,450.00</div>
+                            </div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="activity-icon buy">⏳</div>
+                            <div class="activity-details">
+                                <h4>Payment Received</h4>
+                                <p class="activity-time">1 day ago</p>
+                            </div>
+                            <div class="activity-amount">
+                                <div class="amount">Escrow #1233</div>
+                                <div class="price">$12,340.00</div>
+                            </div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="activity-icon deposit">✅</div>
+                            <div class="activity-details">
+                                <h4>Escrow Released</h4>
+                                <p class="activity-time">2 days ago</p>
+                            </div>
+                            <div class="activity-amount">
+                                <div class="amount">Escrow #1231</div>
+                                <div class="price">$10,000.00</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="portfolio-section actions-section">
+                    <div class="section-header">
+                        <h2>Quick Actions</h2>
+                    </div>
+                    <div class="action-buttons">
+                        <button class="action-btn primary">
+                            <span class="action-icon">🔒</span>
+                            <span>Create Escrow</span>
+                        </button>
+                        <button class="action-btn">
+                            <span class="action-icon">📋</span>
+                            <span>My Escrows</span>
+                        </button>
+                        <button class="action-btn">
+                            <span class="action-icon">🔍</span>
+                            <span>Find Escrow</span>
+                        </button>
+                        <button class="action-btn">
+                            <span class="action-icon">📊</span>
+                            <span>Analytics</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
