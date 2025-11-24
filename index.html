@@ -68,21 +68,21 @@
             <div class="nav-brand">
                 <h2>CommodityX</h2>
             </div>
-            <ul class="nav-menu">
+            <ul class="nav-menu" id="navMenu" style="display: none;">
                 <li><a href="#profile" class="nav-active">Profile</a></li>
             </ul>
             <div class="nav-right">
                 <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
                     <span class="theme-icon">🌙</span>
                 </button>
-                <button class="btn btn-primary connect-wallet-btn" id="connectWalletBtn">
+                <button class="btn btn-primary connect-wallet-btn" id="connectWalletBtn" style="display: none;">
                     Connect Wallet
                 </button>
                 <div class="wallet-address" id="walletAddress" style="display: none;">
                     <span class="address-text">0x1234...5678</span>
                 </div>
             </div>
-            <button class="nav-toggle" id="navToggle">
+            <button class="nav-toggle" id="navToggle" style="display: none;">
                 <span></span>
                 <span></span>
                 <span></span>
@@ -90,8 +90,30 @@
         </div>
     </nav>
 
+    <!-- Landing Page -->
+    <main class="landing-page" id="landingPage">
+        <div class="landing-background">
+            <div class="floating-shape shape-1"></div>
+            <div class="floating-shape shape-2"></div>
+            <div class="floating-shape shape-3"></div>
+            <div class="floating-shape shape-4"></div>
+        </div>
+        <div class="landing-container">
+            <div class="landing-content">
+                <h1 class="landing-title">
+                    <span class="gradient-text">Connect with Verified Suppliers</span>
+                </h1>
+                <p class="landing-subtitle">Trade commodities safely with trusted partners through our secure escrow platform</p>
+                <button class="btn btn-primary btn-large landing-cta" id="landingConnectBtn">
+                    <span class="btn-text">Connect Wallet to Start</span>
+                    <span class="btn-arrow">→</span>
+                </button>
+            </div>
+        </div>
+    </main>
+
     <!-- Profile -->
-    <main class="portfolio-dashboard" id="profile">
+    <main class="portfolio-dashboard" id="profile" style="display: none;">
         <div class="container">
             <!-- Profile Details Section -->
             <div class="profile-section" id="profileCard">

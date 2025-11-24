@@ -57,6 +57,12 @@ if (connectWalletBtn) {
     connectWalletBtn.addEventListener('click', openWalletModal);
 }
 
+// Landing page connect wallet button
+const landingConnectBtn = document.getElementById('landingConnectBtn');
+if (landingConnectBtn) {
+    landingConnectBtn.addEventListener('click', openWalletModal);
+}
+
 // Handle wallet option clicks
 walletOptions.forEach(option => {
     option.addEventListener('click', function() {
@@ -83,10 +89,26 @@ function closeWalletModal() {
         walletModal.classList.remove('active');
         document.body.classList.remove('wallet-modal-open');
         
-        // Hide connect button and show wallet address
+        // Hide landing page and show profile
+        const landingPage = document.getElementById('landingPage');
+        const profilePage = document.getElementById('profile');
+        const navMenu = document.getElementById('navMenu');
         const connectWalletBtn = document.getElementById('connectWalletBtn');
         const walletAddress = document.getElementById('walletAddress');
         
+        if (landingPage && profilePage) {
+            // Hide landing page
+            landingPage.style.display = 'none';
+            // Show profile page
+            profilePage.style.display = 'block';
+        }
+        
+        // Show navigation menu
+        if (navMenu) {
+            navMenu.style.display = 'flex';
+        }
+        
+        // Hide connect button and show wallet address
         if (connectWalletBtn && walletAddress) {
             // Hide connect button
             connectWalletBtn.style.display = 'none';
