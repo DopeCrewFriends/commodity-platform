@@ -312,11 +312,11 @@ body.wallet-modal-open > *:not(.wallet-modal) {
 }
 
 .landing-title {
-    font-size: 5.5rem;
+    font-size: 6rem;
     font-weight: 800;
     margin-bottom: 2rem;
     line-height: 1.1;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.01em;
 }
 
 .gradient-text {
