@@ -11,6 +11,8 @@
             document.documentElement.setAttribute('data-theme', savedTheme);
         })();
     </script>
+    <!-- Solana Kit - using Phantom's injected provider for wallet connection -->
+    <!-- For full Solana operations, install @solana/kit via npm if needed -->
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -59,7 +61,7 @@
                             </div>
                             <div class="profile-wallet">
                                 <span class="wallet-label">Wallet:</span>
-                                <span class="wallet-address-text" id="profileWalletAddress">0x1234...5678</span>
+                                <span class="wallet-address-text" id="editingProfileWalletAddress"></span>
                             </div>
                         </div>
                     </div>
@@ -99,41 +101,38 @@
                 <p>Connect your wallet to access the CommodityX escrow platform</p>
             </div>
             <div class="wallet-options">
-                <button class="wallet-option" data-wallet="metamask">
-                    <div class="wallet-icon">🦊</div>
+                <button class="wallet-option" data-wallet="phantom" id="phantomWalletOption">
+                    <div class="wallet-icon">👻</div>
                     <div class="wallet-info">
-                        <h3>MetaMask</h3>
-                        <p>Connect using MetaMask wallet</p>
-                    </div>
-                    <div class="wallet-arrow">→</div>
-                </button>
-                <button class="wallet-option" data-wallet="walletconnect">
-                    <div class="wallet-icon">🔗</div>
-                    <div class="wallet-info">
-                        <h3>WalletConnect</h3>
-                        <p>Connect using WalletConnect</p>
-                    </div>
-                    <div class="wallet-arrow">→</div>
-                </button>
-                <button class="wallet-option" data-wallet="coinbase">
-                    <div class="wallet-icon">💼</div>
-                    <div class="wallet-info">
-                        <h3>Coinbase Wallet</h3>
-                        <p>Connect using Coinbase Wallet</p>
-                    </div>
-                    <div class="wallet-arrow">→</div>
-                </button>
-                <button class="wallet-option" data-wallet="trust">
-                    <div class="wallet-icon">🛡️</div>
-                    <div class="wallet-info">
-                        <h3>Trust Wallet</h3>
-                        <p>Connect using Trust Wallet</p>
+                        <h3>Phantom</h3>
+                        <p>Connect using Phantom wallet</p>
                     </div>
                     <div class="wallet-arrow">→</div>
                 </button>
             </div>
+            <div id="walletError" class="wallet-error" style="display: none;"></div>
             <div class="wallet-modal-footer">
                 <p class="wallet-disclaimer">By connecting, you agree to our Terms of Service and Privacy Policy</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Completion Modal -->
+    <div class="profile-completion-modal" id="profileCompletionModal">
+        <div class="profile-completion-modal-overlay"></div>
+        <div class="profile-completion-modal-content">
+            <div class="profile-completion-modal-header">
+                <span class="completion-icon">✨</span>
+                <h2>Welcome to CommodityX!</h2>
+                <p>Complete your profile to get started</p>
+            </div>
+            <div class="profile-completion-modal-body">
+                <p>Fill in your profile information to begin using the platform. You can always update this later.</p>
+            </div>
+            <div class="profile-completion-modal-footer">
+                <button class="btn btn-primary" id="completeProfileBtn">
+                    Complete Profile
+                </button>
             </div>
         </div>
     </div>
@@ -162,7 +161,7 @@
                     Connect Wallet
                 </button>
                 <div class="wallet-address" id="walletAddress" style="display: none;">
-                    <span class="address-text">0x1234...5678</span>
+                    <span class="address-text"></span>
                 </div>
             </div>
             <button class="nav-toggle" id="navToggle" style="display: none;">
@@ -225,30 +224,32 @@
                         </div>
                         <div class="profile-wallet">
                             <span class="wallet-label">Wallet:</span>
-                            <span class="wallet-address-text" id="profileWalletAddress">0x1234...5678</span>
+                            <span class="wallet-address-text copyable-wallet" id="profileWalletAddress" data-full-address=""></span>
+                            <span class="copy-icon" id="profileCopyIcon">📋</span>
+                            <span class="copy-feedback" id="profileCopyFeedback" style="display: none;">Copied!</span>
                         </div>
                     </div>
                 </div>
                 <div class="profile-stats">
                     <div class="profile-stat-item">
                         <div class="stat-value">Member Since</div>
-                        <div class="stat-label">Jan 2024</div>
+                        <div class="stat-label" id="memberSince">-</div>
                     </div>
                     <div class="profile-stat-item">
                         <div class="stat-value">Completed Trades</div>
-                        <div class="stat-label">27</div>
+                        <div class="stat-label" id="completedTrades">0</div>
                     </div>
                     <div class="profile-stat-item">
                         <div class="stat-value">Total Volume</div>
-                        <div class="stat-label">$125,450.00</div>
+                        <div class="stat-label" id="totalVolume">$0.00</div>
                     </div>
                     <div class="profile-stat-item">
                         <div class="stat-value">Success Rate</div>
-                        <div class="stat-label">96%</div>
+                        <div class="stat-label" id="successRate">-</div>
                     </div>
                     <div class="profile-stat-item">
                         <div class="stat-value">Rating</div>
-                        <div class="stat-label">⭐ 4.8/5.0</div>
+                        <div class="stat-label" id="rating">-</div>
                     </div>
                 </div>
                 
@@ -265,7 +266,7 @@
                     </div>
                     <div class="trade-partners-list" id="tradePartnersList">
                         <!-- Completed Trades -->
-                        <div class="trade-item completed" data-trade-id="1">
+                        <div class="trade-item completed" data-trade-id="1" style="display: none;">
                             <div class="trade-profiles">
                                 <div class="profile-badge buyer">
                                     <div class="profile-avatar-small">JD</div>
@@ -286,7 +287,7 @@
                                 <p class="trade-date">Completed: Jan 15, 2024</p>
                             </div>
                         </div>
-                        <div class="trade-item completed" data-trade-id="2">
+                        <div class="trade-item completed" data-trade-id="2" style="display: none;">
                             <div class="trade-profiles">
                                 <div class="profile-badge seller">
                                     <div class="profile-avatar-small">JD</div>
@@ -307,7 +308,7 @@
                                 <p class="trade-date">Completed: Jan 10, 2024</p>
                             </div>
                         </div>
-                        <div class="trade-item completed" data-trade-id="3">
+                        <div class="trade-item completed" data-trade-id="3" style="display: none;">
                             <div class="trade-profiles">
                                 <div class="profile-badge buyer">
                                     <div class="profile-avatar-small">JD</div>
@@ -328,7 +329,7 @@
                                 <p class="trade-date">Completed: Jan 8, 2024</p>
                             </div>
                         </div>
-                        <div class="trade-item completed" data-trade-id="4">
+                        <div class="trade-item completed" data-trade-id="4" style="display: none;">
                             <div class="trade-profiles">
                                 <div class="profile-badge seller">
                                     <div class="profile-avatar-small">JD</div>
@@ -349,7 +350,7 @@
                                 <p class="trade-date">Completed: Jan 5, 2024</p>
                             </div>
                         </div>
-                        <div class="trade-item completed" data-trade-id="5">
+                        <div class="trade-item completed" data-trade-id="5" style="display: none;">
                             <div class="trade-profiles">
                                 <div class="profile-badge buyer">
                                     <div class="profile-avatar-small">JD</div>
@@ -481,6 +482,8 @@
                         </div>
                     </div>
                 </div>
+                
+                <!-- Profile Footer with Wallet Address -->
             </div>
 
             <!-- Active Escrows Section -->
@@ -494,7 +497,7 @@
                             <h2>Active Escrows</h2>
                             <div class="escrows-total">
                                 <span class="total-label">Total in Escrow</span>
-                                <span class="total-amount" id="totalEscrowValue">$86,020.00</span>
+                                <span class="total-amount" id="totalEscrowValue">$0.00</span>
                             </div>
                         </div>
                     </div>
@@ -506,7 +509,7 @@
                             <div class="no-escrows-message" id="noEscrowsMessage" style="display: none;">
                                 <p>No active escrows</p>
                             </div>
-                            <div class="active-escrow-item" data-escrow-id="1">
+                            <div class="active-escrow-item" data-escrow-id="1" style="display: none;">
                                 <div class="escrow-profiles">
                                     <div class="profile-badge buyer">
                                         <div class="profile-avatar-small">JD</div>
@@ -527,7 +530,7 @@
                                     <p class="escrow-date">Started: Jan 20, 2024</p>
                                 </div>
                             </div>
-                            <div class="active-escrow-item" data-escrow-id="2">
+                            <div class="active-escrow-item" data-escrow-id="2" style="display: none;">
                                 <div class="escrow-profiles">
                                     <div class="profile-badge seller">
                                         <div class="profile-avatar-small">JD</div>
@@ -548,7 +551,7 @@
                                     <p class="escrow-date">Started: Jan 19, 2024</p>
                                 </div>
                             </div>
-                            <div class="active-escrow-item" data-escrow-id="3">
+                            <div class="active-escrow-item" data-escrow-id="3" style="display: none;">
                                 <div class="escrow-profiles">
                                     <div class="profile-badge buyer">
                                         <div class="profile-avatar-small">JD</div>

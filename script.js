@@ -40,10 +40,20 @@ function navigateToHomepage() {
 }
 
 // Disconnect wallet function
-function disconnectWallet() {
+async function disconnectWallet() {
+    // Disconnect from Phantom if connected
+    if (window.solana && window.solana.isPhantom && window.solana.isConnected) {
+        try {
+            await window.solana.disconnect();
+        } catch (err) {
+            console.error('Error disconnecting from Phantom:', err);
+        }
+    }
+    
     // Clear localStorage
     localStorage.removeItem('walletConnected');
     localStorage.removeItem('walletAddress');
+    localStorage.removeItem('walletAddressFormatted');
     
     // Show landing page and hide profile
     const landingPage = document.getElementById('landingPage');
@@ -213,80 +223,754 @@ if (landingConnectBtn) {
     landingConnectBtn.addEventListener('click', openWalletModal);
 }
 
+// Check if Phantom wallet is installed
+function isPhantomInstalled() {
+    return window.solana && window.solana.isPhantom;
+}
+
+// Connect to Phantom wallet
+async function connectPhantomWallet() {
+    const walletError = document.getElementById('walletError');
+    const phantomOption = document.getElementById('phantomWalletOption');
+    
+    // Hide any previous errors
+    if (walletError) {
+        walletError.style.display = 'none';
+        walletError.textContent = '';
+    }
+    
+    // Check if Phantom is installed
+    if (!isPhantomInstalled()) {
+        if (walletError) {
+            walletError.textContent = 'Phantom wallet is not installed. Please install it from https://phantom.app';
+            walletError.style.display = 'block';
+        }
+        return null;
+    }
+    
+    try {
+        // Disable button during connection
+        if (phantomOption) {
+            phantomOption.style.opacity = '0.6';
+            phantomOption.style.pointerEvents = 'none';
+        }
+        
+        // Connect to Phantom
+        const resp = await window.solana.connect();
+        const publicKey = resp.publicKey.toString();
+        
+        // Format address for display (first 4 and last 4 characters)
+        const formattedAddress = publicKey.slice(0, 4) + '...' + publicKey.slice(-4);
+        
+        // Store connection info
+        localStorage.setItem('walletConnected', 'true');
+        localStorage.setItem('walletAddress', publicKey);
+        localStorage.setItem('walletAddressFormatted', formattedAddress);
+        
+        // Update UI
+        updateWalletUI(publicKey, formattedAddress);
+        
+        // Update profile wallet address IMMEDIATELY - do it directly
+        const profileWalletAddress = document.getElementById('profileWalletAddress');
+        if (profileWalletAddress) {
+            profileWalletAddress.textContent = publicKey;
+            profileWalletAddress.setAttribute('data-full-address', publicKey);
+        }
+        
+        // Also call the update function
+        updateProfileWalletAddress(publicKey);
+        
+        // Load user-specific data for this wallet
+        loadUserData(publicKey);
+        
+        // Close modal
+        closeWalletModal();
+        
+        return publicKey;
+    } catch (err) {
+        console.error('Error connecting to Phantom:', err);
+        
+        // Show error message
+        if (walletError) {
+            if (err.code === 4001) {
+                walletError.textContent = 'Connection rejected. Please try again.';
+            } else {
+                walletError.textContent = 'Failed to connect to Phantom wallet. Please try again.';
+            }
+            walletError.style.display = 'block';
+        }
+        
+        // Re-enable button
+        if (phantomOption) {
+            phantomOption.style.opacity = '1';
+            phantomOption.style.pointerEvents = 'auto';
+        }
+        
+        return null;
+    }
+}
+
+// Update wallet UI after connection
+function updateWalletUI(publicKey, formattedAddress) {
+    const walletAddress = document.getElementById('walletAddress');
+    const connectWalletBtn = document.getElementById('connectWalletBtn');
+    
+    // Update navbar wallet address
+    if (walletAddress) {
+        walletAddress.querySelector('.address-text').textContent = formattedAddress;
+        walletAddress.style.display = 'flex';
+    }
+    
+    // Hide connect button
+    if (connectWalletBtn) {
+        connectWalletBtn.style.display = 'none';
+    }
+    
+    // Update profile wallet address immediately
+    updateProfileWalletAddress(publicKey);
+}
+
 // Handle wallet option clicks
 walletOptions.forEach(option => {
-    option.addEventListener('click', function() {
+    option.addEventListener('click', async function() {
         const walletType = this.getAttribute('data-wallet');
         
-        // For now, just simulate connection and close modal
-        // In the future, this would actually connect to the wallet
-        console.log(`Connecting to ${walletType}...`);
-        
-        // Simulate connection delay
-        this.style.opacity = '0.6';
-        this.style.pointerEvents = 'none';
-        
-        setTimeout(() => {
-            // Close modal after "connection"
-            closeWalletModal();
-        }, 1000);
+        if (walletType === 'phantom') {
+            await connectPhantomWallet();
+        }
     });
 });
 
-// Restore profile data from localStorage
-function restoreProfileData() {
-    const savedProfileData = localStorage.getItem('profileData');
+// Check if wallet is still connected to Phantom
+async function checkPhantomConnection() {
+    if (!isPhantomInstalled()) {
+        return false;
+    }
+    
+    try {
+        // Check if already connected
+        if (window.solana.isConnected) {
+            return true;
+        }
+        
+        // Try to reconnect if we have a saved connection
+        const savedAddress = localStorage.getItem('walletAddress');
+        if (savedAddress) {
+            // Check if we can get the public key
+            const publicKey = window.solana.publicKey;
+            if (publicKey && publicKey.toString() === savedAddress) {
+                return true;
+            }
+        }
+    } catch (err) {
+        console.error('Error checking Phantom connection:', err);
+    }
+    
+    return false;
+}
+
+// User Data Management Functions
+// Get current wallet address
+function getCurrentWalletAddress() {
+    return localStorage.getItem('walletAddress');
+}
+
+// Get user-specific data key
+function getUserDataKey(dataType) {
+    const walletAddress = getCurrentWalletAddress();
+    if (!walletAddress) return null;
+    return `user_${walletAddress}_${dataType}`;
+}
+
+// Get user data
+function getUserData(dataType, defaultValue = null) {
+    const key = getUserDataKey(dataType);
+    if (!key) return defaultValue;
+    const data = localStorage.getItem(key);
+    if (data) {
+        try {
+            return JSON.parse(data);
+        } catch (e) {
+            console.error(`Error parsing user data for ${dataType}:`, e);
+            return defaultValue;
+        }
+    }
+    return defaultValue;
+}
+
+// Set user data
+function setUserData(dataType, data) {
+    const key = getUserDataKey(dataType);
+    if (!key) {
+        console.error('Cannot save user data: no wallet address');
+        return false;
+    }
+    try {
+        localStorage.setItem(key, JSON.stringify(data));
+        return true;
+    } catch (e) {
+        console.error(`Error saving user data for ${dataType}:`, e);
+        return false;
+    }
+}
+
+// Load user data for a specific wallet address
+function loadUserData(walletAddress) {
+    if (!walletAddress) return;
+    
+    // Load profile data
+    const profileKey = `user_${walletAddress}_profileData`;
+    const savedProfileData = localStorage.getItem(profileKey);
+    
+    // Load and apply statistics
+    loadUserStatistics(walletAddress);
+    
+    // Load and apply escrow data
+    loadUserEscrows(walletAddress);
+    
+    // Load and apply trade history
+    loadUserTradeHistory(walletAddress);
+    
+    // Update wallet address in profile AFTER loading profile data (so it doesn't get overwritten)
+    updateProfileWalletAddress(walletAddress);
+    
     if (savedProfileData) {
         try {
             const profileData = JSON.parse(savedProfileData);
-            const actualProfileSection = document.querySelector('.profile-section:not(.profile-section-editing)');
-            if (actualProfileSection) {
-                const profileName = actualProfileSection.querySelector('.profile-name');
-                const profileEmail = actualProfileSection.querySelector('.profile-email');
-                const companyName = actualProfileSection.querySelector('.company-name');
-                const locationText = actualProfileSection.querySelector('.location-text');
-                const actualProfileAvatar = actualProfileSection.querySelector('.profile-avatar');
-                const actualAvatarPlaceholder = actualProfileSection.querySelector('.avatar-placeholder');
-                
-                if (profileName && profileData.name) profileName.textContent = profileData.name;
-                if (profileEmail && profileData.email) profileEmail.textContent = profileData.email;
-                if (companyName && profileData.company) companyName.textContent = profileData.company;
-                if (locationText && profileData.location) locationText.textContent = profileData.location;
-                
-                // Restore avatar
-                if (profileData.avatarImage) {
-                    let profileImg = actualProfileAvatar.querySelector('img');
-                    if (!profileImg) {
-                        profileImg = document.createElement('img');
-                        profileImg.style.width = '100%';
-                        profileImg.style.height = '100%';
-                        profileImg.style.borderRadius = '50%';
-                        profileImg.style.objectFit = 'cover';
-                        profileImg.style.boxShadow = 'var(--shadow)';
-                        actualProfileAvatar.insertBefore(profileImg, actualAvatarPlaceholder);
-                    }
-                    profileImg.src = profileData.avatarImage;
-                    if (actualAvatarPlaceholder) actualAvatarPlaceholder.style.display = 'none';
-                } else if (profileData.name) {
-                    // Restore initials from name
-                    const profileImg = actualProfileAvatar.querySelector('img');
-                    if (profileImg) {
-                        profileImg.remove();
-                    }
-                    if (actualAvatarPlaceholder) {
-                        actualAvatarPlaceholder.style.display = 'flex';
-                        const nameParts = profileData.name.split(' ');
-                        const initials = nameParts.length > 1 
-                            ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
-                            : profileData.name.substring(0, 2).toUpperCase();
-                        actualAvatarPlaceholder.textContent = initials || 'JD';
-                    }
-                }
+            applyProfileData(profileData);
+            
+            // Show modal if profile is incomplete
+            if (!isProfileComplete(profileData)) {
+                showProfileCompletionPrompt();
+            } else {
+                hideProfileCompletionPrompt();
             }
         } catch (e) {
-            console.error('Error restoring profile data:', e);
+            console.error('Error loading user profile data:', e);
+            initializeNewUserProfile(walletAddress);
+        }
+    } else {
+        // Initialize default profile for new user
+        initializeNewUserProfile(walletAddress);
+    }
+    
+    // Update wallet address AFTER all profile data is loaded to ensure it's correct
+    // Use setTimeout to ensure DOM is fully updated
+    setTimeout(() => {
+        updateProfileWalletAddress(walletAddress);
+    }, 50);
+}
+
+// Copy wallet address to clipboard
+async function copyWalletAddress(fullAddress) {
+    try {
+        await navigator.clipboard.writeText(fullAddress);
+        return true;
+    } catch (err) {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = fullAddress;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            return true;
+        } catch (e) {
+            document.body.removeChild(textArea);
+            return false;
         }
     }
+}
+
+// Update wallet address in profile section and navbar
+function updateProfileWalletAddress(walletAddress) {
+    if (!walletAddress) return;
+    
+    const formattedAddress = walletAddress.length > 12 
+        ? walletAddress.slice(0, 4) + '...' + walletAddress.slice(-4)
+        : walletAddress;
+    
+    // Update profile wallet address (main profile section) - show full address
+    // Try multiple times to ensure it works
+    const updateMainWallet = () => {
+        const profileWalletAddress = document.getElementById('profileWalletAddress');
+        if (profileWalletAddress) {
+            profileWalletAddress.textContent = walletAddress; // Show full address
+            profileWalletAddress.setAttribute('data-full-address', walletAddress);
+            return true;
+        }
+        return false;
+    };
+    
+    // Try immediately
+    if (!updateMainWallet()) {
+        // If element not found, try again after a short delay
+        setTimeout(() => {
+            updateMainWallet();
+        }, 100);
+    }
+    
+    // Update navbar wallet address (top right)
+    const navbarWalletAddress = document.getElementById('walletAddress');
+    if (navbarWalletAddress) {
+        const addressText = navbarWalletAddress.querySelector('.address-text');
+        if (addressText) {
+            addressText.textContent = formattedAddress;
+        }
+    }
+    
+    // Also update in edit profile section
+    const editProfileWalletAddress = document.getElementById('editingProfileWalletAddress');
+    if (editProfileWalletAddress) {
+        editProfileWalletAddress.textContent = formattedAddress;
+    }
+}
+
+// Initialize copy functionality for profile wallet address
+document.addEventListener('DOMContentLoaded', () => {
+    const profileWalletAddress = document.getElementById('profileWalletAddress');
+    const profileCopyIcon = document.getElementById('profileCopyIcon');
+    const profileCopyFeedback = document.getElementById('profileCopyFeedback');
+    
+    if (profileWalletAddress && profileCopyIcon) {
+        // Make the wallet address and copy icon clickable
+        const copyHandler = async function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const fullAddress = profileWalletAddress.getAttribute('data-full-address') || profileWalletAddress.textContent;
+            
+            if (fullAddress) {
+                const success = await copyWalletAddress(fullAddress);
+                
+                if (success && profileCopyFeedback) {
+                    // Show feedback
+                    profileCopyFeedback.style.display = 'inline';
+                    profileCopyFeedback.textContent = 'Copied!';
+                    
+                    // Hide feedback after 2 seconds
+        setTimeout(() => {
+                        profileCopyFeedback.style.display = 'none';
+                    }, 2000);
+                }
+            }
+        };
+        
+        profileWalletAddress.addEventListener('click', copyHandler);
+        profileCopyIcon.addEventListener('click', copyHandler);
+    }
+});
+
+// Load user escrow data
+function loadUserEscrows(walletAddress) {
+    if (!walletAddress) return;
+    
+    const escrowsKey = `user_${walletAddress}_escrows`;
+    const savedEscrows = localStorage.getItem(escrowsKey);
+    
+    if (savedEscrows) {
+        try {
+            const escrowsData = JSON.parse(savedEscrows);
+            applyEscrowsData(escrowsData);
+        } catch (e) {
+            console.error('Error loading user escrows:', e);
+            initializeDefaultEscrows(walletAddress);
+        }
+    } else {
+        initializeDefaultEscrows(walletAddress);
+    }
+}
+
+// Initialize default escrows (empty)
+function initializeDefaultEscrows(walletAddress) {
+    const defaultEscrows = {
+        totalAmount: 0,
+        items: []
+    };
+    
+    const escrowsKey = `user_${walletAddress}_escrows`;
+    localStorage.setItem(escrowsKey, JSON.stringify(defaultEscrows));
+    applyEscrowsData(defaultEscrows);
+}
+
+// Apply escrows data to UI
+function applyEscrowsData(escrowsData) {
+    const totalEscrowValue = document.getElementById('totalEscrowValue');
+    const escrowsList = document.getElementById('activeEscrowsList');
+    const noEscrowsMessage = document.getElementById('noEscrowsMessage');
+    
+    // Update total amount
+    if (totalEscrowValue) {
+        totalEscrowValue.textContent = escrowsData.totalAmount !== undefined 
+            ? `$${escrowsData.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+            : '$0.00';
+    }
+    
+    // Hide all escrow items
+    const escrowItems = document.querySelectorAll('.active-escrow-item');
+    escrowItems.forEach(item => {
+        item.style.display = 'none';
+    });
+    
+    // Show empty message if no escrows
+    if (escrowsData.items && escrowsData.items.length === 0) {
+        if (noEscrowsMessage) {
+            noEscrowsMessage.style.display = 'block';
+        }
+    } else if (noEscrowsMessage) {
+        noEscrowsMessage.style.display = 'none';
+    }
+}
+
+// Load user trade history
+function loadUserTradeHistory(walletAddress) {
+    if (!walletAddress) return;
+    
+    const tradeHistoryKey = `user_${walletAddress}_tradeHistory`;
+    const savedTradeHistory = localStorage.getItem(tradeHistoryKey);
+    
+    if (savedTradeHistory) {
+        try {
+            const tradeHistory = JSON.parse(savedTradeHistory);
+            applyTradeHistory(tradeHistory);
+        } catch (e) {
+            console.error('Error loading user trade history:', e);
+            initializeDefaultTradeHistory(walletAddress);
+        }
+    } else {
+        initializeDefaultTradeHistory(walletAddress);
+    }
+}
+
+// Initialize default trade history (empty)
+function initializeDefaultTradeHistory(walletAddress) {
+    const defaultTradeHistory = {
+        completed: [],
+        ongoing: [],
+        unsuccessful: []
+    };
+    
+    const tradeHistoryKey = `user_${walletAddress}_tradeHistory`;
+    localStorage.setItem(tradeHistoryKey, JSON.stringify(defaultTradeHistory));
+    applyTradeHistory(defaultTradeHistory);
+}
+
+// Apply trade history to UI
+function applyTradeHistory(tradeHistory) {
+    // Hide all trade items
+    const allTradeItems = document.querySelectorAll('.trade-item');
+    allTradeItems.forEach(item => {
+        item.style.display = 'none';
+    });
+    
+    // Show trades based on saved data
+    if (tradeHistory.completed && tradeHistory.completed.length > 0) {
+        tradeHistory.completed.forEach((trade, index) => {
+            const tradeItem = document.querySelector(`.trade-item.completed[data-trade-id="${index + 1}"]`);
+            if (tradeItem) {
+                tradeItem.style.display = 'flex';
+            }
+        });
+    }
+    
+    if (tradeHistory.ongoing && tradeHistory.ongoing.length > 0) {
+        tradeHistory.ongoing.forEach((trade, index) => {
+            const tradeItem = document.querySelector(`.trade-item.ongoing[data-trade-id="${index + 6}"]`);
+            if (tradeItem) {
+                tradeItem.style.display = 'flex';
+            }
+        });
+    }
+    
+    if (tradeHistory.unsuccessful && tradeHistory.unsuccessful.length > 0) {
+        tradeHistory.unsuccessful.forEach((trade, index) => {
+            const tradeItem = document.querySelector(`.trade-item.unsuccessful[data-trade-id="${index + 9}"]`);
+            if (tradeItem) {
+                tradeItem.style.display = 'flex';
+            }
+        });
+    }
+}
+
+// Load user statistics
+function loadUserStatistics(walletAddress) {
+    if (!walletAddress) return;
+    
+    const statsKey = `user_${walletAddress}_statistics`;
+    const savedStats = localStorage.getItem(statsKey);
+    
+    if (savedStats) {
+        try {
+            const stats = JSON.parse(savedStats);
+            applyStatistics(stats);
+        } catch (e) {
+            console.error('Error loading user statistics:', e);
+            initializeDefaultStatistics(walletAddress);
+        }
+    } else {
+        initializeDefaultStatistics(walletAddress);
+    }
+}
+
+// Initialize default statistics for new user
+function initializeDefaultStatistics(walletAddress) {
+    const currentDate = new Date();
+    const month = currentDate.toLocaleString('default', { month: 'short' });
+    const year = currentDate.getFullYear();
+    
+    const defaultStats = {
+        memberSince: `${month} ${year}`,
+        completedTrades: 0,
+        totalVolume: 0,
+        successRate: null,
+        rating: null
+    };
+    
+    const statsKey = `user_${walletAddress}_statistics`;
+    localStorage.setItem(statsKey, JSON.stringify(defaultStats));
+    applyStatistics(defaultStats);
+}
+
+// Apply statistics to UI
+function applyStatistics(stats) {
+    // Update main profile section
+    const memberSince = document.getElementById('memberSince');
+    const completedTrades = document.getElementById('completedTrades');
+    const totalVolume = document.getElementById('totalVolume');
+    const successRate = document.getElementById('successRate');
+    const rating = document.getElementById('rating');
+    
+    // Update edit profile section
+    const editMemberSince = document.getElementById('editMemberSince');
+    const editCompletedTrades = document.getElementById('editCompletedTrades');
+    const editTotalVolume = document.getElementById('editTotalVolume');
+    const editSuccessRate = document.getElementById('editSuccessRate');
+    const editRating = document.getElementById('editRating');
+    
+    const memberSinceText = stats.memberSince || '-';
+    const completedTradesText = stats.completedTrades !== undefined ? stats.completedTrades : '0';
+    const totalVolumeText = stats.totalVolume !== undefined 
+        ? `$${stats.totalVolume.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        : '$0.00';
+    const successRateText = stats.successRate !== null && stats.successRate !== undefined 
+        ? `${stats.successRate}%`
+        : '-';
+    const ratingText = stats.rating !== null && stats.rating !== undefined 
+        ? `⭐ ${stats.rating}/5.0`
+        : '-';
+    
+    if (memberSince) memberSince.textContent = memberSinceText;
+    if (editMemberSince) editMemberSince.textContent = memberSinceText;
+    
+    if (completedTrades) completedTrades.textContent = completedTradesText;
+    if (editCompletedTrades) editCompletedTrades.textContent = completedTradesText;
+    
+    if (totalVolume) totalVolume.textContent = totalVolumeText;
+    if (editTotalVolume) editTotalVolume.textContent = totalVolumeText;
+    
+    if (successRate) successRate.textContent = successRateText;
+    if (editSuccessRate) editSuccessRate.textContent = successRateText;
+    
+    if (rating) rating.textContent = ratingText;
+    if (editRating) editRating.textContent = ratingText;
+}
+
+// Check if profile is complete
+function isProfileComplete(profileData) {
+    return profileData && 
+           profileData.name && profileData.name.trim() !== '' &&
+           profileData.email && profileData.email.trim() !== '' &&
+           profileData.company && profileData.company.trim() !== '' &&
+           profileData.location && profileData.location.trim() !== '';
+}
+
+// Show profile completion modal (forced interaction)
+function showProfileCompletionPrompt() {
+    const modal = document.getElementById('profileCompletionModal');
+    if (!modal) return;
+    
+    // Prevent body scrolling
+    document.body.classList.add('wallet-modal-open');
+    
+    // Show modal with animation
+    setTimeout(() => {
+        modal.classList.add('active');
+    }, 100);
+}
+
+// Hide profile completion modal
+function hideProfileCompletionPrompt() {
+    const modal = document.getElementById('profileCompletionModal');
+    if (modal) {
+        modal.classList.remove('active');
+        document.body.classList.remove('wallet-modal-open');
+    }
+}
+
+// Initialize profile completion modal
+document.addEventListener('DOMContentLoaded', () => {
+    const completeProfileBtn = document.getElementById('completeProfileBtn');
+    const modal = document.getElementById('profileCompletionModal');
+    
+    if (completeProfileBtn) {
+        completeProfileBtn.addEventListener('click', function() {
+            hideProfileCompletionPrompt();
+            openEditProfileModal();
+        });
+    }
+    
+    // Prevent closing modal by clicking overlay (force interaction)
+    if (modal) {
+        const overlay = modal.querySelector('.profile-completion-modal-overlay');
+        if (overlay) {
+            overlay.addEventListener('click', function(e) {
+                e.stopPropagation();
+                // Do nothing - force user to click the button
+            });
+        }
+    }
+});
+
+// Apply profile data to UI
+function applyProfileData(profileData) {
+    const actualProfileSection = document.querySelector('.profile-section:not(.profile-section-editing)');
+    if (!actualProfileSection) return;
+    
+    const profileName = actualProfileSection.querySelector('.profile-name');
+    const profileEmail = actualProfileSection.querySelector('.profile-email');
+    const companyName = actualProfileSection.querySelector('.company-name');
+    const locationText = actualProfileSection.querySelector('.location-text');
+    const actualProfileAvatar = actualProfileSection.querySelector('.profile-avatar');
+    const actualAvatarPlaceholder = actualProfileSection.querySelector('.avatar-placeholder');
+    
+    // Show placeholders if fields are empty
+    if (profileName) {
+        profileName.textContent = profileData.name && profileData.name.trim() !== '' 
+            ? profileData.name 
+            : 'Your Name';
+        if (!profileData.name || profileData.name.trim() === '') {
+            profileName.classList.add('placeholder-text');
+        } else {
+            profileName.classList.remove('placeholder-text');
+        }
+    }
+    
+    if (profileEmail) {
+        profileEmail.textContent = profileData.email && profileData.email.trim() !== '' 
+            ? profileData.email 
+            : 'your.email@example.com';
+        if (!profileData.email || profileData.email.trim() === '') {
+            profileEmail.classList.add('placeholder-text');
+        } else {
+            profileEmail.classList.remove('placeholder-text');
+        }
+    }
+    
+    if (companyName) {
+        companyName.textContent = profileData.company && profileData.company.trim() !== '' 
+            ? profileData.company 
+            : 'Your Company';
+        if (!profileData.company || profileData.company.trim() === '') {
+            companyName.classList.add('placeholder-text');
+        } else {
+            companyName.classList.remove('placeholder-text');
+        }
+    }
+    
+    if (locationText) {
+        locationText.textContent = profileData.location && profileData.location.trim() !== '' 
+            ? profileData.location 
+            : 'Your Location';
+        if (!profileData.location || profileData.location.trim() === '') {
+            locationText.classList.add('placeholder-text');
+        } else {
+            locationText.classList.remove('placeholder-text');
+        }
+    }
+    
+    // Restore avatar
+    if (profileData.avatarImage) {
+        let profileImg = actualProfileAvatar.querySelector('img');
+        if (!profileImg) {
+            profileImg = document.createElement('img');
+            profileImg.style.width = '100%';
+            profileImg.style.height = '100%';
+            profileImg.style.borderRadius = '50%';
+            profileImg.style.objectFit = 'cover';
+            profileImg.style.boxShadow = 'var(--shadow)';
+            actualProfileAvatar.insertBefore(profileImg, actualAvatarPlaceholder);
+        }
+        profileImg.src = profileData.avatarImage;
+        if (actualAvatarPlaceholder) actualAvatarPlaceholder.style.display = 'none';
+    } else {
+        // Remove any existing image
+        const profileImg = actualProfileAvatar.querySelector('img');
+        if (profileImg) {
+            profileImg.remove();
+        }
+        
+        // Show placeholder with initials
+        if (actualAvatarPlaceholder) {
+            actualAvatarPlaceholder.style.display = 'flex';
+            if (profileData.name && profileData.name.trim() !== '') {
+                // Use initials from name
+                const nameParts = profileData.name.split(' ');
+                const initials = nameParts.length > 1 
+                    ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
+                    : profileData.name.substring(0, 2).toUpperCase();
+                actualAvatarPlaceholder.textContent = initials || '??';
+            } else {
+                // Use wallet address initials (first 2 chars)
+                const walletAddress = getCurrentWalletAddress();
+                if (walletAddress) {
+                    actualAvatarPlaceholder.textContent = walletAddress.slice(0, 2).toUpperCase();
+                } else {
+                    actualAvatarPlaceholder.textContent = '??';
+                }
+            }
+        }
+    }
+}
+
+// Initialize default profile for new user (blank)
+function initializeNewUserProfile(walletAddress) {
+    const formattedAddress = walletAddress.length > 12 
+        ? walletAddress.slice(0, 4) + '...' + walletAddress.slice(-4)
+        : walletAddress;
+    
+    // Generate initials from wallet address (first 2 characters)
+    const initials = walletAddress.slice(0, 2).toUpperCase();
+    
+    const defaultProfile = {
+        name: '',
+        email: '',
+        company: '',
+        location: '',
+        avatarImage: null
+    };
+    
+    setUserData('profileData', defaultProfile);
+    applyProfileData(defaultProfile);
+    
+    // Update avatar placeholder with initials
+    const actualAvatarPlaceholder = document.querySelector('.avatar-placeholder');
+    if (actualAvatarPlaceholder) {
+        actualAvatarPlaceholder.textContent = initials;
+    }
+    
+    // Show profile completion prompt
+    showProfileCompletionPrompt();
+}
+
+// Restore profile data from localStorage (for current user)
+function restoreProfileData() {
+    const walletAddress = getCurrentWalletAddress();
+    if (!walletAddress) return;
+    
+    loadUserData(walletAddress);
 }
 
 // Restore wallet connection from localStorage
@@ -307,6 +991,17 @@ function restoreWalletConnection() {
             landingPage.style.display = 'none';
             profilePage.style.display = 'block';
             
+            // Update wallet address IMMEDIATELY after showing profile page
+            // Do it directly to ensure it works
+            const profileWalletAddress = document.getElementById('profileWalletAddress');
+            if (profileWalletAddress && savedWalletAddress) {
+                profileWalletAddress.textContent = savedWalletAddress;
+                profileWalletAddress.setAttribute('data-full-address', savedWalletAddress);
+            }
+            
+            // Also call the update function
+            updateProfileWalletAddress(savedWalletAddress);
+            
             // Initialize escrows handler after profile page is shown
             setTimeout(() => {
                 initializeEscrowsHandler();
@@ -317,16 +1012,12 @@ function restoreWalletConnection() {
             navMenu.style.display = 'flex';
         }
         
+        // Also update wallet address again to be sure (using the update function)
+        updateProfileWalletAddress(savedWalletAddress);
+        
         if (connectWalletBtn && walletAddress) {
             connectWalletBtn.style.display = 'none';
-            walletAddress.querySelector('.address-text').textContent = savedWalletAddress;
             walletAddress.style.display = 'flex';
-        }
-        
-        // Update profile wallet address
-        const profileWalletAddress = document.getElementById('profileWalletAddress');
-        if (profileWalletAddress) {
-            profileWalletAddress.textContent = savedWalletAddress;
         }
         
         // Show theme toggle
@@ -334,8 +1025,8 @@ function restoreWalletConnection() {
             themeToggle.style.display = 'flex';
         }
         
-        // Restore profile data
-        restoreProfileData();
+        // Load user-specific data
+        loadUserData(savedWalletAddress);
         
         // Initialize escrow dashboard data
         initializeEscrowDashboard();
@@ -377,20 +1068,18 @@ function closeWalletModal() {
             // Hide connect button
             connectWalletBtn.style.display = 'none';
             
-            // Show wallet address with simulated address
-            // In a real app, this would be the actual connected wallet address
-            const simulatedAddress = '0x' + Math.random().toString(16).substr(2, 8) + '...' + Math.random().toString(16).substr(2, 4);
-            walletAddress.querySelector('.address-text').textContent = simulatedAddress;
-            walletAddress.style.display = 'flex';
-            
-            // Save wallet connection to localStorage
-            localStorage.setItem('walletConnected', 'true');
-            localStorage.setItem('walletAddress', simulatedAddress);
-            
-            // Update profile wallet address
-            const profileWalletAddress = document.getElementById('profileWalletAddress');
-            if (profileWalletAddress) {
-                profileWalletAddress.textContent = simulatedAddress;
+            // Get the actual wallet address from localStorage
+            const savedWalletAddress = localStorage.getItem('walletAddress');
+            if (savedWalletAddress) {
+                const formattedAddress = savedWalletAddress.length > 12 
+                    ? savedWalletAddress.slice(0, 4) + '...' + savedWalletAddress.slice(-4)
+                    : savedWalletAddress;
+                
+                const addressText = walletAddress.querySelector('.address-text');
+                if (addressText) {
+                    addressText.textContent = formattedAddress;
+                }
+                walletAddress.style.display = 'flex';
             }
         }
         
@@ -599,7 +1288,14 @@ if (editProfileForm) {
             location: location,
             avatarImage: editProfileImage && editProfileImage.src && editProfileImage.style.display !== 'none' ? editProfileImage.src : null
         };
-        localStorage.setItem('profileData', JSON.stringify(profileData));
+        setUserData('profileData', profileData);
+        
+        // Check if profile is now complete and hide prompt
+        if (isProfileComplete(profileData)) {
+            hideProfileCompletionPrompt();
+        } else {
+            showProfileCompletionPrompt();
+        }
         
         // Close modal
         closeEditProfileModal();
@@ -630,18 +1326,18 @@ tradeItems.forEach(item => {
 
 // Initialize Active Escrows Header Click Handler
 function initializeEscrowsHandler() {
-    const escrowsHeaderCard = document.getElementById('escrowsHeaderCard');
-    const activeEscrowsDropdown = document.getElementById('activeEscrowsDropdown');
-    
-    if (escrowsHeaderCard && activeEscrowsDropdown) {
+const escrowsHeaderCard = document.getElementById('escrowsHeaderCard');
+const activeEscrowsDropdown = document.getElementById('activeEscrowsDropdown');
+
+if (escrowsHeaderCard && activeEscrowsDropdown) {
         // Remove existing listener if any (by using once: false and checking)
         escrowsHeaderCard.onclick = null;
         
-        escrowsHeaderCard.addEventListener('click', function(e) {
-            // Don't toggle if clicking on escrow items
-            if (e.target.closest('.active-escrow-item')) {
-                return;
-            }
+    escrowsHeaderCard.addEventListener('click', function(e) {
+        // Don't toggle if clicking on escrow items
+        if (e.target.closest('.active-escrow-item')) {
+            return;
+        }
             
             // Check if there are any active escrows
             const activeEscrowsList = document.getElementById('activeEscrowsList');
@@ -655,11 +1351,11 @@ function initializeEscrowsHandler() {
                     visibleCount++;
                 }
             });
-            
-            // Toggle dropdown
+        
+        // Toggle dropdown
             const isExpanding = !escrowsHeaderCard.classList.contains('expanded');
-            escrowsHeaderCard.classList.toggle('expanded');
-            activeEscrowsDropdown.classList.toggle('expanded');
+        escrowsHeaderCard.classList.toggle('expanded');
+        activeEscrowsDropdown.classList.toggle('expanded');
             
             // Show/hide empty state message when expanding
             if (isExpanding) {
@@ -722,10 +1418,8 @@ filterButtons.forEach(btn => {
 // Initialize escrow dashboard with sample data
 function initializeEscrowDashboard() {
     // Update total escrow value
-    const totalEscrowValue = document.getElementById('totalEscrowValue');
-    if (totalEscrowValue) {
-        totalEscrowValue.textContent = '$86,020.00';
-    }
+    // Total escrow value is now managed by loadUserEscrows() function
+    // No need to set it here as it's user-specific
     
     const escrowStatus = document.getElementById('escrowStatus');
     if (escrowStatus) {
