@@ -1,11 +1,36 @@
 // ==================== CONTACTS MANAGEMENT ====================
 
-// Get all users from localStorage (directory of all users with profiles)
-function getAllUsers() {
-    const users = [];
+// Get all users from API (with localStorage fallback)
+async function getAllUsers() {
     const currentWallet = getCurrentWalletAddress();
     
-    // Scan all localStorage keys
+    // Try API first
+    if (typeof getAllProfilesFromAPI === 'function') {
+        try {
+            const apiUsers = await getAllProfilesFromAPI(currentWallet);
+            if (apiUsers && apiUsers.length > 0) {
+                // Cache API results in localStorage for offline access
+                apiUsers.forEach(user => {
+                    const key = `user_${user.walletAddress}_profileData`;
+                    const profileData = {
+                        name: user.name,
+                        email: user.email,
+                        company: user.company,
+                        location: user.location,
+                        avatarImage: user.avatarImage,
+                        walletAddress: user.walletAddress
+                    };
+                    localStorage.setItem(key, JSON.stringify(profileData));
+                });
+                return apiUsers;
+            }
+        } catch (error) {
+            console.warn('Failed to fetch users from API, falling back to localStorage:', error);
+        }
+    }
+    
+    // Fallback to localStorage
+    const users = [];
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key && key.startsWith('user_') && key.endsWith('_profileData')) {
@@ -36,20 +61,75 @@ function getAllUsers() {
     return users;
 }
 
-// Search users by name
-function searchUsersByName(searchQuery) {
+// Search users by name (API with localStorage fallback)
+async function searchUsersByName(searchQuery) {
     if (!searchQuery || searchQuery.trim() === '') {
         return [];
     }
     
-    const query = searchQuery.trim().toLowerCase();
-    const allUsers = getAllUsers();
+    const query = searchQuery.trim();
+    const currentWallet = getCurrentWalletAddress();
     const contacts = getContacts();
     const contactAddresses = new Set(contacts.map(c => c.address));
     
+    // Try API first
+    if (typeof searchProfilesFromAPI === 'function') {
+        try {
+            const apiUsers = await searchProfilesFromAPI(query, currentWallet);
+            if (apiUsers && apiUsers.length > 0) {
+                // Cache API results in localStorage
+                apiUsers.forEach(user => {
+                    const key = `user_${user.walletAddress}_profileData`;
+                    const profileData = {
+                        name: user.name,
+                        email: user.email,
+                        company: user.company,
+                        location: user.location,
+                        avatarImage: user.avatarImage,
+                        walletAddress: user.walletAddress
+                    };
+                    localStorage.setItem(key, JSON.stringify(profileData));
+                });
+                
+                // Filter out already added contacts
+                return apiUsers.filter(user => !contactAddresses.has(user.walletAddress));
+            }
+        } catch (error) {
+            console.warn('Failed to search users from API, falling back to localStorage:', error);
+        }
+    }
+    
+    // Fallback to localStorage search
+    const queryLower = query.toLowerCase();
+    const allUsers = [];
+    
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('user_') && key.endsWith('_profileData')) {
+            const walletAddress = key.replace('user_', '').replace('_profileData', '');
+            if (walletAddress === currentWallet) continue;
+            
+            try {
+                const profileData = JSON.parse(localStorage.getItem(key));
+                if (profileData && profileData.name && profileData.name.trim() !== '') {
+                    allUsers.push({
+                        walletAddress: walletAddress,
+                        name: profileData.name.trim(),
+                        email: profileData.email || '',
+                        company: profileData.company || '',
+                        location: profileData.location || '',
+                        avatarImage: profileData.avatarImage || null
+                    });
+                }
+            } catch (e) {
+                console.error(`Error parsing profile data for ${walletAddress}:`, e);
+            }
+        }
+    }
+    
     // Filter users by name and exclude already added contacts
     return allUsers.filter(user => {
-        const nameMatch = user.name.toLowerCase().includes(query);
+        const nameMatch = user.name.toLowerCase().includes(queryLower);
         const isAlreadyContact = contactAddresses.has(user.walletAddress);
         return nameMatch && !isAlreadyContact;
     });
@@ -242,12 +322,15 @@ function deleteContact(contactId) {
 }
 
 // Render user directory (all users with profiles)
-function renderUserDirectory() {
+async function renderUserDirectory() {
     const contactsList = document.getElementById('contactsList');
     const noContactsMessage = document.getElementById('noContactsMessage');
     if (!contactsList) return;
     
-    const allUsers = getAllUsers();
+    // Show loading state
+    contactsList.innerHTML = '<p style="text-align: center; padding: 2rem; color: var(--text-light);">Loading users...</p>';
+    
+    const allUsers = await getAllUsers();
     const savedContacts = getContacts();
     const savedContactAddresses = new Set(savedContacts.map(c => c.address));
     
@@ -345,80 +428,90 @@ function renderMyContacts() {
     
     if (noContactsMessage) noContactsMessage.style.display = 'none';
     
-    // Get all users to find profile info for saved contacts
-    const allUsers = getAllUsers();
-    const userMap = new Map(allUsers.map(u => [u.walletAddress, u]));
-    
-    contactsList.innerHTML = contacts.map(contact => {
-        const userProfile = userMap.get(contact.address);
-        
-        // Get initials for avatar
-        const nameParts = contact.name.split(' ');
-        const initials = nameParts.length > 1 
-            ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
-            : contact.name.substring(0, 2).toUpperCase();
-        
-        // Use profile data if available, otherwise use contact data
-        const displayName = userProfile?.name || contact.name;
-        const email = userProfile?.email || '';
-        const company = userProfile?.company || '';
-        const location = userProfile?.location || '';
-        const avatarImage = userProfile?.avatarImage || null;
-        
-        return `
-            <div class="user-profile-card" data-contact-id="${contact.id}">
-                <div class="user-profile-avatar">
-                    ${avatarImage 
-                        ? `<img src="${escapeHtml(avatarImage)}" alt="${escapeHtml(displayName)}">`
-                        : `<div class="user-profile-avatar-placeholder">${initials}</div>`
-                    }
+    // Helper function to render contacts list with profile data
+    const renderContactsList = (userMap = new Map()) => {
+        contactsList.innerHTML = contacts.map(contact => {
+            const userProfile = userMap.get(contact.address);
+            
+            // Get initials for avatar
+            const nameParts = contact.name.split(' ');
+            const initials = nameParts.length > 1 
+                ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
+                : contact.name.substring(0, 2).toUpperCase();
+            
+            // Use profile data if available, otherwise use contact data
+            const displayName = userProfile?.name || contact.name;
+            const email = userProfile?.email || '';
+            const company = userProfile?.company || '';
+            const location = userProfile?.location || '';
+            const avatarImage = userProfile?.avatarImage || null;
+            
+            return `
+                <div class="user-profile-card" data-contact-id="${contact.id}">
+                    <div class="user-profile-avatar">
+                        ${avatarImage 
+                            ? `<img src="${escapeHtml(avatarImage)}" alt="${escapeHtml(displayName)}">`
+                            : `<div class="user-profile-avatar-placeholder">${initials}</div>`
+                        }
+                    </div>
+                    <div class="user-profile-info">
+                        <div class="user-profile-name">${escapeHtml(displayName)}</div>
+                        ${email ? `<div class="user-profile-email">${escapeHtml(email)}</div>` : ''}
+                        ${company ? `<div class="user-profile-company">${escapeHtml(company)}</div>` : ''}
+                        ${location ? `<div class="user-profile-location">📍 ${escapeHtml(location)}</div>` : ''}
+                        <div class="user-profile-address">${formatAddress(contact.address)}</div>
+                        ${contact.notes ? `<div class="contact-notes" style="margin-top: 0.25rem; font-size: 0.8rem; color: var(--text-light); font-style: italic;">${escapeHtml(contact.notes)}</div>` : ''}
+                    </div>
+                    <div class="user-profile-actions">
+                        <button class="btn btn-secondary btn-small remove-contact-btn" data-contact-id="${contact.id}" title="Remove Contact">
+                            Remove
+                        </button>
+                    </div>
                 </div>
-                <div class="user-profile-info">
-                    <div class="user-profile-name">${escapeHtml(displayName)}</div>
-                    ${email ? `<div class="user-profile-email">${escapeHtml(email)}</div>` : ''}
-                    ${company ? `<div class="user-profile-company">${escapeHtml(company)}</div>` : ''}
-                    ${location ? `<div class="user-profile-location">📍 ${escapeHtml(location)}</div>` : ''}
-                    <div class="user-profile-address">${formatAddress(contact.address)}</div>
-                    ${contact.notes ? `<div class="contact-notes" style="margin-top: 0.25rem; font-size: 0.8rem; color: var(--text-light); font-style: italic;">${escapeHtml(contact.notes)}</div>` : ''}
-                </div>
-                <div class="user-profile-actions">
-                    <button class="btn btn-secondary btn-small remove-contact-btn" data-contact-id="${contact.id}" title="Remove Contact">
-                        Remove
-                    </button>
-                </div>
-            </div>
-        `;
-    }).join('');
-    
-    // Add event listeners for remove buttons
-    contactsList.querySelectorAll('.remove-contact-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const contactId = btn.getAttribute('data-contact-id');
-            if (confirm('Are you sure you want to remove this contact?')) {
-                deleteContact(contactId);
-                renderMyContacts();
-            }
-        });
-    });
-    
-    // Add click handlers to view profile when clicking on contact cards
-    contactsList.querySelectorAll('.user-profile-card[data-contact-id]').forEach(card => {
-        card.style.cursor = 'pointer';
-        card.addEventListener('click', (e) => {
-            // Don't trigger if clicking on the Remove button
-            if (e.target.closest('.remove-contact-btn')) {
-                return;
-            }
-            const contactId = card.getAttribute('data-contact-id');
-            if (contactId) {
-                const contacts = getContacts();
-                const contact = contacts.find(c => c.id === contactId);
-                if (contact && contact.address && typeof viewUserProfile === 'function') {
-                    viewUserProfile(contact.address);
+            `;
+        }).join('');
+        
+        // Add event listeners for remove buttons
+        contactsList.querySelectorAll('.remove-contact-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const contactId = btn.getAttribute('data-contact-id');
+                if (confirm('Are you sure you want to remove this contact?')) {
+                    deleteContact(contactId);
+                    renderMyContacts();
                 }
-            }
+            });
         });
+        
+        // Add click handlers to view profile when clicking on contact cards
+        contactsList.querySelectorAll('.user-profile-card[data-contact-id]').forEach(card => {
+            card.style.cursor = 'pointer';
+            card.addEventListener('click', (e) => {
+                // Don't trigger if clicking on the Remove button
+                if (e.target.closest('.remove-contact-btn')) {
+                    return;
+                }
+                const contactId = card.getAttribute('data-contact-id');
+                if (contactId) {
+                    const contacts = getContacts();
+                    const contact = contacts.find(c => c.id === contactId);
+                    if (contact && contact.address && typeof viewUserProfile === 'function') {
+                        viewUserProfile(contact.address);
+                    }
+                }
+            });
+        });
+    };
+    
+    // Render immediately with basic info
+    renderContactsList(new Map());
+    
+    // Then update with profile data from API (if available)
+    getAllUsers().then(allUsers => {
+        const userMap = new Map(allUsers.map(u => [u.walletAddress, u]));
+        renderContactsList(userMap);
+    }).catch(err => {
+        console.error('Error loading user profiles for contacts:', err);
     });
 }
 
@@ -555,9 +648,9 @@ function initializeContactsManagement() {
             }
             
             // Debounce search (only works on directory view)
-            searchTimeout = setTimeout(() => {
+            searchTimeout = setTimeout(async () => {
                 if (currentContactsView === 'directory') {
-                    const results = searchUsersByName(query);
+                    const results = await searchUsersByName(query);
                     renderSearchResults(results);
                     
                     // Hide user directory when showing search results

@@ -116,11 +116,26 @@ function updateProfileViewMode(isOwnProfile) {
 }
 
 // Load user data for viewing (works for both own profile and other users)
-function loadUserDataForViewing(walletAddress) {
+async function loadUserDataForViewing(walletAddress) {
     if (!walletAddress) return;
     
-    const profileKey = `user_${walletAddress}_profileData`;
-    const savedProfileData = localStorage.getItem(profileKey);
+    // Try to load from API first, fallback to localStorage
+    let profileData = null;
+    
+    if (typeof getProfile === 'function') {
+        profileData = await getProfile(walletAddress);
+    } else {
+        // Fallback to localStorage only
+        const profileKey = `user_${walletAddress}_profileData`;
+        const savedProfileData = localStorage.getItem(profileKey);
+        if (savedProfileData) {
+            try {
+                profileData = JSON.parse(savedProfileData);
+            } catch (e) {
+                console.error('Error parsing local profile data:', e);
+            }
+        }
+    }
     
     // Load and apply statistics
     loadUserStatistics(walletAddress);
@@ -137,9 +152,8 @@ function loadUserDataForViewing(walletAddress) {
     
     updateProfileWalletAddress(walletAddress);
     
-    if (savedProfileData) {
+    if (profileData) {
         try {
-            const profileData = JSON.parse(savedProfileData);
             applyProfileData(profileData);
             
             // Only show completion prompt for own profile
@@ -705,12 +719,22 @@ if (editProfileForm) {
             lastUpdated: new Date().toISOString()
         };
         
-        // Save profile data - this automatically saves to user_{walletAddress}_profileData
-        // which makes it searchable via the getAllUsers() function in contacts.js
+        // Save profile data - sync to both localStorage and API
         const saved = setUserData('profileData', profileData);
         
-        if (saved) {
-            console.log(`✅ Profile saved and registered for search! Wallet: ${walletAddress}`);
+        // Also save to API for cross-device sharing
+        if (typeof syncProfile === 'function') {
+            syncProfile(profileData).then(result => {
+                if (result.api) {
+                    console.log(`✅ Profile saved to API and registered for cross-device search! Wallet: ${walletAddress}`);
+                } else {
+                    console.log(`✅ Profile saved locally (API unavailable). Wallet: ${walletAddress}`);
+                }
+            });
+        } else {
+            if (saved) {
+                console.log(`✅ Profile saved locally! Wallet: ${walletAddress}`);
+            }
         }
         
         applyProfileData(profileData);
