@@ -195,6 +195,10 @@
     <!-- Profile -->
     <main class="portfolio-dashboard" id="profile" style="display: none;">
         <div class="container">
+            <!-- Back Arrow (shown when viewing other user's profile) -->
+            <button class="profile-back-arrow" id="profileBackArrow" style="display: none;" title="Back to My Profile">
+                <span>←</span>
+            </button>
             <!-- Profile Details Section -->
             <div class="profile-section" id="profileCard">
                 <div class="profile-actions">
@@ -576,10 +580,118 @@
                 </div>
             </div>
 
+            <!-- Contacts and Wallet Balance Section -->
+            <div class="contacts-wallet-section">
+                <!-- Contacts Management Box -->
+                <div class="contacts-card">
+                    <div class="card-header">
+                        <h2>Contacts</h2>
+                        <div class="contacts-header-actions">
+                            <button class="btn btn-primary btn-small" id="myContactsBtn">
+                                <span>👥</span> My Contacts
+                            </button>
+                            <button class="btn btn-primary btn-small" id="toggleSearchBtn">
+                                <span>🔍</span> Search
+                            </button>
+                        </div>
+                    </div>
+                    <div class="contacts-content">
+                        <div class="contacts-search-section" id="contactsSearchSection" style="display: none;">
+                            <input 
+                                type="text" 
+                                id="contactsSearchInput" 
+                                class="contacts-search-input" 
+                                placeholder="Search users by name..."
+                                autocomplete="off"
+                            >
+                            <div class="contacts-search-results" id="contactsSearchResults" style="display: none;"></div>
+                        </div>
+                        <div class="contacts-list" id="contactsList">
+                            <div class="no-contacts-message" id="noContactsMessage">
+                                <p>No contacts yet. Add your first contact!</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Wallet Balance Box -->
+                <div class="wallet-balance-card">
+                    <div class="card-header">
+                        <h2>Wallet Balance</h2>
+                    </div>
+                    <div class="wallet-balance-content">
+                        <!-- SOL Balance -->
+                        <div class="balance-item">
+                            <div class="balance-token-header">
+                                <img src="sol.png" alt="SOL" class="token-logo">
+                                <span class="balance-label">SOL</span>
+                            </div>
+                            <div class="balance-amount" id="walletBalanceAmount">
+                                <span class="balance-loading">Loading...</span>
+                            </div>
+                            <div class="balance-usd" id="walletBalanceUSD">
+                                <span class="usd-loading">Calculating...</span>
+                            </div>
+                        </div>
+                        <!-- USDC Balance -->
+                        <div class="balance-item">
+                            <div class="balance-token-header">
+                                <img src="usdc.png" alt="USDC" class="token-logo">
+                                <span class="balance-label">USDC</span>
+                            </div>
+                            <div class="balance-amount" id="walletBalanceUSDCAmount">
+                                <span class="balance-loading">Loading...</span>
+                            </div>
+                            <div class="balance-usd" id="walletBalanceUSDCUSD">
+                                <span class="usd-loading">Calculating...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </main>
 
-    <script src="script.js"></script>
+    <!-- Add Contact Modal -->
+    <div class="contact-modal" id="contactModal" style="display: none;">
+        <div class="contact-modal-overlay"></div>
+        <div class="contact-modal-content">
+            <div class="contact-modal-header">
+                <h3 id="contactModalTitle">Add Contact</h3>
+                <button class="close-btn" id="closeContactModal">✕</button>
+            </div>
+            <form id="contactForm" class="contact-form">
+                <div class="form-group">
+                    <label for="contactName">Name</label>
+                    <input type="text" id="contactName" placeholder="Contact Name" required>
+                </div>
+                <div class="form-group">
+                    <label for="contactAddress">Wallet Address</label>
+                    <input type="text" id="contactAddress" placeholder="Enter Solana wallet address" required>
+                </div>
+                <div class="form-group">
+                    <label for="contactNotes">Notes (Optional)</label>
+                    <textarea id="contactNotes" placeholder="Add any additional notes..." rows="3"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelContactBtn">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Contact</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Load scripts in dependency order -->
+    <script src="scripts/storage.js"></script>
+    <script src="scripts/cleanup.js"></script>
+    <script src="scripts/utils.js"></script>
+    <script src="scripts/wallet.js"></script>
+    <script src="scripts/profile.js"></script>
+    <script src="scripts/trades.js"></script>
+    <script src="scripts/contacts.js"></script>
+    <script src="scripts/balance.js"></script>
+    <script src="scripts/main.js"></script>
 </body>
 </html>
 
