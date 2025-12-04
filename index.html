@@ -28,35 +28,34 @@
                     </div>
                     <div class="profile-header">
                         <div class="profile-avatar">
-                            <img id="editProfileImage" src="" alt="Profile" style="display: none;">
-                            <div class="avatar-placeholder" id="editAvatarPlaceholder">JD</div>
-                            <label for="profilePictureInput" class="avatar-upload-overlay">
-                                <input type="file" id="profilePictureInput" accept="image/*" style="display: none;">
-                                <span>📷</span>
-                            </label>
-                            <button type="button" class="avatar-remove-btn" id="removePictureBtn" style="display: none;">×</button>
+                            <div class="avatar-placeholder" id="editAvatarPlaceholder"></div>
+                            <div class="avatar-edit-overlay">
+                                <span class="camera-icon">📷</span>
+                            </div>
+                            <img id="editProfileImage" src="" alt="" style="display: none; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; position: absolute; top: 0; left: 0;">
+                            <input type="file" id="profilePictureInput" accept="image/*" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10;">
                         </div>
                         <div class="profile-info">
                             <div class="editable-field-wrapper">
                                 <span class="edit-icon">✏️</span>
-                                <input type="text" class="profile-name-input" id="editName" value="John Doe" required>
+                                <input type="text" class="profile-name-input" id="editName" placeholder="Your Name" required>
                             </div>
                             <div class="editable-field-wrapper">
                                 <span class="edit-icon">✏️</span>
-                                <input type="email" class="profile-email-input" id="editEmail" value="john.doe@example.com" required>
+                                <input type="email" class="profile-email-input" id="editEmail" placeholder="your.email@example.com" required>
                             </div>
                             <div class="profile-company">
                                 <span class="company-label">Company:</span>
                                 <div class="editable-field-wrapper">
                                     <span class="edit-icon">✏️</span>
-                                    <input type="text" class="company-name-input" id="editCompany" value="Global Commodities Trading LLC" required>
+                                    <input type="text" class="company-name-input" id="editCompany" placeholder="Your Company" required>
                                 </div>
                             </div>
                             <div class="profile-location">
                                 <span class="location-label">📍</span>
                                 <div class="editable-field-wrapper">
                                     <span class="edit-icon">✏️</span>
-                                    <input type="text" class="location-text-input" id="editLocation" value="New York, USA • London, UK" required>
+                                    <input type="text" class="location-text-input" id="editLocation" placeholder="Your Location" required>
                                 </div>
                             </div>
                             <div class="profile-wallet">
@@ -68,23 +67,23 @@
                     <div class="profile-stats">
                         <div class="profile-stat-item">
                             <div class="stat-value">Member Since</div>
-                            <div class="stat-label">Jan 2024</div>
+                            <div class="stat-label" id="editMemberSince">-</div>
                         </div>
                         <div class="profile-stat-item">
                             <div class="stat-value">Completed Trades</div>
-                            <div class="stat-label">27</div>
+                            <div class="stat-label" id="editCompletedTrades">0</div>
                         </div>
                         <div class="profile-stat-item">
                             <div class="stat-value">Total Volume</div>
-                            <div class="stat-label">$125,450.00</div>
+                            <div class="stat-label" id="editTotalVolume">$0.00</div>
                         </div>
                         <div class="profile-stat-item">
                             <div class="stat-value">Success Rate</div>
-                            <div class="stat-label">96%</div>
+                            <div class="stat-label" id="editSuccessRate">-</div>
                         </div>
                         <div class="profile-stat-item">
                             <div class="stat-value">Rating</div>
-                            <div class="stat-label">⭐ 4.8/5.0</div>
+                            <div class="stat-label" id="editRating">-</div>
                         </div>
                     </div>
                 </div>

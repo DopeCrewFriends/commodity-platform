@@ -717,12 +717,8 @@ function loadUserStatistics(walletAddress) {
 
 // Initialize default statistics for new user
 function initializeDefaultStatistics(walletAddress) {
-    const currentDate = new Date();
-    const month = currentDate.toLocaleString('default', { month: 'short' });
-    const year = currentDate.getFullYear();
-    
     const defaultStats = {
-        memberSince: `${month} ${year}`,
+        memberSince: null,
         completedTrades: 0,
         totalVolume: 0,
         successRate: null,
@@ -1122,35 +1118,153 @@ const cancelEditBtn = document.getElementById('cancelEditBtn');
 // Open edit profile overlay
 function openEditProfileModal() {
     if (editProfileOverlay) {
-        // Get current profile values from the actual profile page
-        const profileName = document.querySelector('.profile-name');
-        const profileEmail = document.querySelector('.profile-email');
-        const companyName = document.querySelector('.company-name');
-        const locationText = document.querySelector('.location-text');
-        const avatarPlaceholder = document.querySelector('.avatar-placeholder');
-        const existingProfileImg = document.querySelector('.profile-avatar img');
+        // Get current profile values from the actual profile page (NOT the editing one)
+        const mainProfileSection = document.querySelector('.profile-section:not(.profile-section-editing)');
+        const profileName = mainProfileSection ? mainProfileSection.querySelector('.profile-name') : document.querySelector('.profile-name');
+        const profileEmail = mainProfileSection ? mainProfileSection.querySelector('.profile-email') : document.querySelector('.profile-email');
+        const companyName = mainProfileSection ? mainProfileSection.querySelector('.company-name') : document.querySelector('.company-name');
+        const locationText = mainProfileSection ? mainProfileSection.querySelector('.location-text') : document.querySelector('.location-text');
+        const avatarPlaceholder = mainProfileSection ? mainProfileSection.querySelector('.avatar-placeholder') : document.querySelector('.avatar-placeholder');
+        const existingProfileImg = mainProfileSection ? mainProfileSection.querySelector('.profile-avatar img') : document.querySelector('.profile-avatar img');
         
-        // Populate editable fields with current values
-        if (profileName) document.getElementById('editName').value = profileName.textContent;
-        if (profileEmail) document.getElementById('editEmail').value = profileEmail.textContent;
-        if (companyName) document.getElementById('editCompany').value = companyName.textContent;
-        if (locationText) document.getElementById('editLocation').value = locationText.textContent;
+        // Populate editable fields with current values (only if not placeholder text)
+        const editName = document.getElementById('editName');
+        const editEmail = document.getElementById('editEmail');
+        const editCompany = document.getElementById('editCompany');
+        const editLocation = document.getElementById('editLocation');
+        
+        if (profileName && editName) {
+            const nameText = profileName.textContent.trim();
+            // Check if it's placeholder text
+            if (nameText && nameText !== 'Your Name' && !profileName.classList.contains('placeholder-text')) {
+                editName.value = nameText;
+            } else {
+                editName.value = '';
+            }
+        }
+        
+        if (profileEmail && editEmail) {
+            const emailText = profileEmail.textContent.trim();
+            // Check if it's placeholder text
+            if (emailText && emailText !== 'your.email@example.com' && !profileEmail.classList.contains('placeholder-text')) {
+                editEmail.value = emailText;
+            } else {
+                editEmail.value = '';
+            }
+        }
+        
+        if (companyName && editCompany) {
+            const companyText = companyName.textContent.trim();
+            // Check if it's placeholder text
+            if (companyText && companyText !== 'Your Company' && !companyName.classList.contains('placeholder-text')) {
+                editCompany.value = companyText;
+            } else {
+                editCompany.value = '';
+            }
+        }
+        
+        if (locationText && editLocation) {
+            const locationTextValue = locationText.textContent.trim();
+            // Check if it's placeholder text
+            if (locationTextValue && locationTextValue !== 'Your Location' && !locationText.classList.contains('placeholder-text')) {
+                editLocation.value = locationTextValue;
+            } else {
+                editLocation.value = '';
+            }
+        }
         
         // Handle profile picture in editing view
         const editProfileImage = document.getElementById('editProfileImage');
         const editAvatarPlaceholder = document.getElementById('editAvatarPlaceholder');
-        const removePictureBtn = document.getElementById('removePictureBtn');
+        const avatarEditOverlay = document.querySelector('.avatar-edit-overlay');
         
-        if (existingProfileImg && existingProfileImg.src) {
+        // Check if there's an existing profile image
+        const savedProfileData = getUserData('profileData');
+        const hasSavedImage = savedProfileData && savedProfileData.avatarImage;
+        
+        // Always ensure placeholder is visible first and properly initialized
+        if (editAvatarPlaceholder) {
+            // Force display
+            editAvatarPlaceholder.style.display = 'flex';
+            editAvatarPlaceholder.style.visibility = 'visible';
+            editAvatarPlaceholder.style.opacity = '1';
+            
+            // Get initials from the main profile page's avatar placeholder (NOT the editing one)
+            const mainProfileSection = document.querySelector('.profile-section:not(.profile-section-editing)');
+            const mainAvatarPlaceholder = mainProfileSection ? mainProfileSection.querySelector('.avatar-placeholder') : null;
+            
+            if (mainAvatarPlaceholder && mainAvatarPlaceholder.textContent && mainAvatarPlaceholder.textContent.trim() !== '') {
+                // Use initials from main profile page
+                editAvatarPlaceholder.textContent = mainAvatarPlaceholder.textContent.trim();
+            } else if (avatarPlaceholder && avatarPlaceholder.textContent && avatarPlaceholder.textContent.trim() !== '') {
+                // Fallback to the avatarPlaceholder variable if main profile not found
+                editAvatarPlaceholder.textContent = avatarPlaceholder.textContent.trim();
+            } else {
+                // Fallback: Get initials from saved profile data or current inputs
+                const savedName = savedProfileData && savedProfileData.name ? savedProfileData.name.trim() : '';
+                const nameInput = document.getElementById('editName');
+                const currentName = nameInput && nameInput.value ? nameInput.value.trim() : savedName;
+                
+                if (currentName && currentName !== '' && currentName !== 'Your Name') {
+                    // Use initials from name
+                    const nameParts = currentName.split(' ');
+                    const initials = nameParts.length > 1 
+                        ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
+                        : currentName.substring(0, 2).toUpperCase();
+                    editAvatarPlaceholder.textContent = initials;
+                } else {
+                    // Use wallet address initials
+                    const walletAddress = getCurrentWalletAddress();
+                    if (walletAddress) {
+                        editAvatarPlaceholder.textContent = walletAddress.slice(0, 2).toUpperCase();
+                    } else {
+                        editAvatarPlaceholder.textContent = '??';
+                    }
+                }
+            }
+        }
+        
+        // Hide placeholder only if we have a valid image
+        if (hasSavedImage && savedProfileData.avatarImage) {
+            // Use saved image
+            editProfileImage.src = savedProfileData.avatarImage;
+            editProfileImage.style.display = 'block';
+            editProfileImage.style.zIndex = '8';
+            if (editAvatarPlaceholder) {
+                editAvatarPlaceholder.style.display = 'none';
+            }
+            // Hide overlay when image is shown
+            if (avatarEditOverlay) {
+                avatarEditOverlay.style.display = 'none';
+            }
+        } else if (existingProfileImg && existingProfileImg.src && existingProfileImg.src.trim() !== '' && !existingProfileImg.src.includes('data:image/svg')) {
+            // Use existing image from display (but not placeholder SVGs)
             editProfileImage.src = existingProfileImg.src;
             editProfileImage.style.display = 'block';
-            editAvatarPlaceholder.style.display = 'none';
-            if (removePictureBtn) removePictureBtn.style.display = 'block';
+            editProfileImage.style.zIndex = '8';
+            if (editAvatarPlaceholder) {
+                editAvatarPlaceholder.style.display = 'none';
+            }
+            // Hide overlay when image is shown
+            if (avatarEditOverlay) {
+                avatarEditOverlay.style.display = 'none';
+            }
         } else {
+            // Show placeholder with initials (already set above)
             editProfileImage.style.display = 'none';
-            editAvatarPlaceholder.style.display = 'flex';
-            if (avatarPlaceholder) editAvatarPlaceholder.textContent = avatarPlaceholder.textContent;
-            if (removePictureBtn) removePictureBtn.style.display = 'none';
+            if (editAvatarPlaceholder) {
+                editAvatarPlaceholder.style.display = 'flex';
+                editAvatarPlaceholder.style.visibility = 'visible';
+                editAvatarPlaceholder.style.opacity = '1';
+                editAvatarPlaceholder.style.zIndex = '1';
+            }
+            // Show overlay when placeholder is shown - ALWAYS show it
+            if (avatarEditOverlay) {
+                avatarEditOverlay.style.display = 'flex';
+                avatarEditOverlay.style.visibility = 'visible';
+                avatarEditOverlay.style.opacity = '1';
+                avatarEditOverlay.style.zIndex = '9';
+            }
         }
         
         // Prevent body scrolling
@@ -1167,6 +1281,16 @@ function closeEditProfileModal() {
         document.body.classList.remove('wallet-modal-open');
     }
 }
+
+// Close edit profile modal on Escape key press
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' || e.keyCode === 27) {
+        const editProfileOverlay = document.getElementById('editProfileOverlay');
+        if (editProfileOverlay && editProfileOverlay.style.display !== 'none' && editProfileOverlay.style.display !== '') {
+            closeEditProfileModal();
+        }
+    }
+});
 
 // Edit Profile Button
 if (editProfileBtn) {
@@ -1188,7 +1312,6 @@ if (cancelEditBtn) {
 const profilePictureInput = document.getElementById('profilePictureInput');
 const editProfileImage = document.getElementById('editProfileImage');
 const editAvatarPlaceholder = document.getElementById('editAvatarPlaceholder');
-const removePictureBtn = document.getElementById('removePictureBtn');
 
 if (profilePictureInput) {
     profilePictureInput.addEventListener('change', function(e) {
@@ -1198,22 +1321,15 @@ if (profilePictureInput) {
             reader.onload = function(e) {
                 editProfileImage.src = e.target.result;
                 editProfileImage.style.display = 'block';
-                editAvatarPlaceholder.style.display = 'none';
-                if (removePictureBtn) removePictureBtn.style.display = 'block';
+                if (editAvatarPlaceholder) editAvatarPlaceholder.style.display = 'none';
+                // Hide overlay when image is uploaded
+                const avatarEditOverlay = document.querySelector('.avatar-edit-overlay');
+                if (avatarEditOverlay) {
+                    avatarEditOverlay.style.display = 'none';
+                }
             };
             reader.readAsDataURL(file);
         }
-    });
-}
-
-// Handle remove picture button
-if (removePictureBtn) {
-    removePictureBtn.addEventListener('click', function() {
-        editProfileImage.src = '';
-        editProfileImage.style.display = 'none';
-        editAvatarPlaceholder.style.display = 'flex';
-        removePictureBtn.style.display = 'none';
-        if (profilePictureInput) profilePictureInput.value = '';
     });
 }
 
@@ -1289,6 +1405,9 @@ if (editProfileForm) {
             avatarImage: editProfileImage && editProfileImage.src && editProfileImage.style.display !== 'none' ? editProfileImage.src : null
         };
         setUserData('profileData', profileData);
+        
+        // Also apply the profile data to ensure avatar image is displayed on main profile
+        applyProfileData(profileData);
         
         // Check if profile is now complete and hide prompt
         if (isProfileComplete(profileData)) {
