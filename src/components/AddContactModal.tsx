@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useContacts } from '../hooks/useContacts';
-import { Contact } from '../types';
 import { apiRequest, checkApiHealth } from '../utils/api';
 
 interface AddContactModalProps {
@@ -55,27 +54,6 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ walletAddress, onClos
 
     return () => clearTimeout(searchTimeout);
   }, [searchQuery, walletAddress, isOnline]);
-
-  const handleSearchByUsername = async (username: string) => {
-    if (!username.trim()) return;
-    
-    setIsSearching(true);
-    setError('');
-    try {
-      const profile = await apiRequest<SearchResult>(`/api/profiles/username/${encodeURIComponent(username)}`);
-      if (profile.walletAddress === walletAddress) {
-        setError('Cannot add yourself as a contact');
-        return;
-      }
-      setSelectedUser(profile);
-      setSearchQuery('');
-      setSearchResults([]);
-    } catch (err) {
-      setError('User not found with that username');
-    } finally {
-      setIsSearching(false);
-    }
-  };
 
   const handleSelectUser = (user: SearchResult) => {
     setSelectedUser(user);

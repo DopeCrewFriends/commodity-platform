@@ -1,5 +1,3 @@
-import { ProfileData, Contact, Escrow, TradeHistory, Statistics } from '../types';
-
 export function getUserDataKey(walletAddress: string, dataType: string): string {
   return `user_${walletAddress}_${dataType}`;
 }

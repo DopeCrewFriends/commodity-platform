@@ -12,7 +12,7 @@ interface EditProfileModalProps {
 
 const EditProfileModal: React.FC<EditProfileModalProps> = ({ 
   profileData, 
-  statistics, 
+  statistics: _statistics, 
   walletAddress,
   onSave, 
   onClose 

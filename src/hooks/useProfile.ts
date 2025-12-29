@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ProfileData, Statistics } from '../types';
-import { loadUserData, saveUserData, getCurrentWalletAddress, getInitials } from '../utils/storage';
+import { loadUserData, saveUserData } from '../utils/storage';
 
 export function useProfile(walletAddress: string) {
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
@@ -22,7 +22,6 @@ export function useProfile(walletAddress: string) {
       setProfileData({ ...savedProfile, walletAddress });
     } else {
       // Initialize new profile
-      const initials = getInitials('', walletAddress);
       setProfileData({
         name: '',
         email: '',
