@@ -1,97 +1,109 @@
-# Commodities Landing Page
+# SETL - Escrow Platform
 
-A modern, responsive landing page for a commodities trading website.
+A modern, decentralized escrow platform built with React, TypeScript, and Vite.
 
 ## Features
 
-- 🎨 Modern and beautiful UI design
-- 📱 Fully responsive (mobile, tablet, desktop)
-- ⚡ Smooth animations and transitions
-- 🔒 Professional layout with hero section
-- 📊 Commodities showcase section
-- 💼 Services section
-- 📈 About section with statistics
-- 📧 Contact form
-- 🎯 Smooth scrolling navigation
+- 🔐 Solana wallet integration
+- 💼 Profile management
+- 📊 Balance tracking with real-time SOL/USDC prices
+- 🤝 Contact management
+- 📋 Escrow management
+- 📈 Trade history
+- 🎨 Modern, responsive UI with dark/light mode
 
-## Files
+## Setup Instructions
 
-- `index.html` - Main HTML structure
-- `styles.css` - Styling and responsive design
-- `script.js` - Interactive features and animations
-- `server.py` - Python HTTP server script
+### 1. Install Dependencies
 
-## Running on Localhost
+```bash
+pnpm install
+```
 
-### Option 1: Using Python (Recommended)
+### 2. Run Development Server
 
-1. Make sure you have Python installed on your system
-2. Open a terminal/command prompt in this directory
-3. Run the server script:
+```bash
+pnpm dev
+```
+
+This will start the Vite dev server on **http://localhost:3000** (or the next available port).
+
+### 3. Build for Production
+
+```bash
+pnpm build
+```
+
+This creates a `dist` folder with optimized production files.
+
+### 4. Preview Production Build
+
+```bash
+pnpm preview
+```
+
+## API Configuration
+
+The frontend connects to an API server for online features (contacts, profiles). 
+
+### Local Development
+
+1. **Terminal 1** - API Server:
    ```bash
-   python server.py
+   python api_server.py
    ```
-   Or on some systems:
+   Runs on http://localhost:5000
+
+2. **Terminal 2** - Vite Dev Server:
    ```bash
-   python3 server.py
+   pnpm dev
    ```
-4. The browser should open automatically, or manually navigate to:
-   ```
-   http://localhost:8000
-   ```
-5. Press `Ctrl+C` to stop the server
+   Runs on http://localhost:3000
 
-### Option 2: Using Python's Built-in Server
+### Production Deployment
 
-1. Open a terminal/command prompt in this directory
-2. Run:
+For production, you need to:
+
+1. **Host the API server** on a platform that supports persistent databases:
+   - **Recommended**: Railway, Render, Fly.io, or DigitalOcean
+   - These support Flask apps with SQLite or PostgreSQL
+   - Vercel is not recommended for this Flask API (use serverless functions instead)
+
+2. **Set the API URL** in your environment:
+   - Create a `.env` file (or set in Vercel dashboard):
+     ```
+     VITE_API_URL=https://your-api-domain.com
+     ```
+   - Or update `src/utils/api.ts` with your API URL
+
+3. **Deploy the frontend** to Vercel:
    ```bash
-   python -m http.server 8000
+   pnpm build
    ```
-   Or:
-   ```bash
-   python3 -m http.server 8000
-   ```
-3. Open your browser and go to:
-   ```
-   http://localhost:8000
-   ```
+   Then deploy the `dist` folder to Vercel
 
-### Option 3: Using Node.js (if installed)
+## Project Structure
 
-1. Install `http-server` globally (one-time):
-   ```bash
-   npm install -g http-server
-   ```
-2. Run the server:
-   ```bash
-   http-server -p 8000
-   ```
-3. Open your browser and go to:
-   ```
-   http://localhost:8000
-   ```
+```
+├── src/
+│   ├── components/     # React components
+│   ├── hooks/          # Custom React hooks
+│   ├── types/          # TypeScript type definitions
+│   ├── utils/          # Utility functions
+│   ├── App.tsx         # Main app component
+│   └── main.tsx        # Entry point
+├── styles.css          # Global styles
+├── vite.config.ts      # Vite configuration
+└── package.json        # Dependencies and scripts
+```
 
-### Option 4: Using PHP (if installed)
+## Tech Stack
 
-1. Open a terminal/command prompt in this directory
-2. Run:
-   ```bash
-   php -S localhost:8000
-   ```
-3. Open your browser and go to:
-   ```
-   http://localhost:8000
-   ```
-
-## Customization
-
-You can easily customize the landing page by editing:
-
-- **Colors**: Modify the CSS variables in `styles.css` (lines 6-13)
-- **Content**: Edit the HTML in `index.html`
-- **Styling**: Adjust styles in `styles.css`
-- **Functionality**: Modify JavaScript in `script.js`
+- **React 18** - UI framework
+- **TypeScript** - Type safety
+- **Vite** - Build tool and dev server
+- **@solana/kit** - Solana wallet integration
+- **CoinGecko API** - Cryptocurrency price data
 
 ## Browser Support
 
