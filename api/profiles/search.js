@@ -31,10 +31,11 @@ export default async function handler(req, res) {
     if (supabase) {
       const searchPattern = `%${query.trim()}%`;
       
+      // Build query with OR condition for name or username
       let queryBuilder = supabase
         .from('profiles')
         .select('*')
-        .or(`name.ilike.${searchPattern},username.ilike.${searchPattern}`)
+        .or(`name.ilike."${searchPattern}",username.ilike."${searchPattern}"`)
         .limit(50);
 
       if (exclude) {
