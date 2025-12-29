@@ -87,8 +87,16 @@ export function useProfile(walletAddress: string) {
     }
   };
   
+  // Track if validation is disabled to prevent infinite loops
+  let validationDisabled = false;
+  
   // Check if username is available (for real-time validation)
   const checkUsernameAvailability = async (username: string): Promise<boolean> => {
+    // If validation was disabled due to errors, skip it
+    if (validationDisabled) {
+      return true;
+    }
+    
     if (!username || username.trim().length < 3) {
       return true; // Empty or too short is considered "available" (will be validated on save)
     }
@@ -96,59 +104,68 @@ export function useProfile(walletAddress: string) {
     try {
       const usernameLower = username.toLowerCase().trim();
       
-      // Create a timeout promise to prevent hanging
-      const timeoutPromise = new Promise<boolean>((_, reject) => {
-        setTimeout(() => reject(new Error('Request timeout')), 3000);
+      // Create a timeout promise to prevent hanging (reduced to 2 seconds)
+      const timeoutPromise = new Promise<boolean>((resolve) => {
+        setTimeout(() => {
+          console.warn('Username check timeout, disabling real-time validation');
+          validationDisabled = true; // Disable after timeout to prevent more attempts
+          resolve(true); // Return true to allow username
+        }, 2000);
       });
       
-      // Use a more direct approach - check if username exists exactly
-      const checkPromise = (async () => {
-        try {
-          // First try the search endpoint
-          const response = await apiRequest<{ users: Array<{ walletAddress: string; username?: string }> }>(
-            `/api/profiles/search?q=${encodeURIComponent(usernameLower)}&exclude=${walletAddress}`
-          );
-          
-          // Check if any user in results has the exact same username (case-insensitive)
-          const isTaken = response.users?.some(
-            user => user.username && user.username.toLowerCase().trim() === usernameLower
-          );
-          
-          return !isTaken;
-        } catch (searchError: any) {
-          // If search returns 503 (Database not configured), skip real-time validation
-          if (searchError.message?.includes('503') || searchError.message?.includes('Database not configured')) {
-            console.log('Database not configured, skipping real-time username validation');
-            return true; // Allow it, will be validated on save
-          }
-          
-          // If search fails, try checking by username directly
-          try {
-            await apiRequest<{ username?: string }>(
-              `/api/profiles/username/${encodeURIComponent(usernameLower)}`
-            );
-            // If we get a profile back and it's not the current user's, username is taken
-            return false;
-          } catch (usernameError: any) {
-            // If username endpoint also returns 503, skip validation
-            if (usernameError.message?.includes('503') || usernameError.message?.includes('Database not configured')) {
-              console.log('Database not configured, skipping real-time username validation');
-              return true;
-            }
-            throw usernameError;
-          }
-        }
-      })();
+      // Use AbortController for fetch cancellation
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
       
-      // Race between the check and timeout
-      return await Promise.race([checkPromise, timeoutPromise]);
-    } catch (error: any) {
-      // If it's a timeout or database not configured, allow it (will be validated on save)
-      if (error.message?.includes('timeout') || error.message?.includes('503') || error.message?.includes('Database not configured')) {
-        console.log('Username availability check unavailable, will validate on save');
-        return true;
+      try {
+        // First try the search endpoint with abort signal
+        const response = await fetch(`${window.location.origin}/api/profiles/search?q=${encodeURIComponent(usernameLower)}&exclude=${walletAddress}`, {
+          signal: controller.signal,
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          if (response.status === 503) {
+            console.log('Database not configured, disabling real-time validation');
+            validationDisabled = true;
+            return true;
+          }
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json() as { users: Array<{ walletAddress: string; username?: string }> };
+        
+        // Check if any user in results has the exact same username (case-insensitive)
+        const isTaken = data.users?.some(
+          user => user.username && user.username.toLowerCase().trim() === usernameLower
+        );
+        
+        return !isTaken;
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        
+        // If aborted or network error, disable validation
+        if (fetchError.name === 'AbortError' || fetchError.message?.includes('fetch')) {
+          console.warn('Network error during username check, disabling real-time validation');
+          validationDisabled = true;
+          return true;
+        }
+        
+        // If search returns 503 (Database not configured), skip real-time validation
+        if (fetchError.message?.includes('503') || fetchError.message?.includes('Database not configured')) {
+          console.log('Database not configured, disabling real-time validation');
+          validationDisabled = true;
+          return true;
+        }
+        
+        throw fetchError;
       }
-      console.error('Failed to check username availability:', error);
+    } catch (error: any) {
+      // Disable validation on any error to prevent infinite loops
+      validationDisabled = true;
+      console.error('Failed to check username availability, disabling real-time validation:', error);
       // If check fails, allow it (will be validated on save)
       return true;
     }

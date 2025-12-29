@@ -79,9 +79,10 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
   const [saving, setSaving] = useState(false);
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
+  const [validationDisabled, setValidationDisabled] = useState(false);
   
-  // Debounce username for validation
-  const debouncedUsername = useDebounce(formData.username, 500);
+  // Debounce username for validation (increased to 800ms to reduce API calls)
+  const debouncedUsername = useDebounce(formData.username, 800);
   
   // Check username availability when debounced value changes
   useEffect(() => {
@@ -98,19 +99,19 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       return;
     }
 
-    // Only check if checkUsernameAvailability is provided
-    if (!checkUsernameAvailability) {
+    // Only check if checkUsernameAvailability is provided and not disabled
+    if (!checkUsernameAvailability || validationDisabled) {
       setCheckingUsername(false);
       setUsernameError(null);
       return;
     }
 
-    // Set up timeout to prevent permanent "checking" state
+    // Set up timeout to prevent permanent "checking" state (reduced to 2.5 seconds)
     const timeoutId = setTimeout(() => {
       if (isMounted) {
         setCheckingUsername(false);
       }
-    }, 3000); // 3 second timeout
+    }, 2500); // 2.5 second timeout
 
     setCheckingUsername(true);
     setUsernameError(null);
@@ -129,6 +130,8 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
         clearTimeout(timeoutId);
         setCheckingUsername(false);
         console.error('Failed to check username availability (will validate on save):', err);
+        // Disable validation if it keeps failing to prevent browser freeze
+        setValidationDisabled(true);
         // Don't show error to user - validation will happen on save
         // This prevents "Failed to fetch" from showing during typing
       });
