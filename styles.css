@@ -3155,6 +3155,11 @@ section {
     flex-shrink: 1;
 }
 
+.username-input.error {
+    border-color: #e74c3c !important;
+    background: rgba(231, 76, 60, 0.1) !important;
+}
+
 .profile-name-input::placeholder,
 .profile-email-input::placeholder,
 .company-name-input::placeholder,
@@ -3181,6 +3186,16 @@ section {
 [data-theme="dark"] .username-input {
     background: rgba(255, 255, 255, 0.1);
     border-color: rgba(59, 130, 246, 0.2);
+}
+
+.username-input.error {
+    border-color: #e74c3c !important;
+    background: rgba(231, 76, 60, 0.1) !important;
+}
+
+[data-theme="dark"] .username-input.error {
+    border-color: #e74c3c !important;
+    background: rgba(231, 76, 60, 0.2) !important;
 }
 
 .profile-name-input {

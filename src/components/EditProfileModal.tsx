@@ -2,12 +2,30 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ProfileData, Statistics } from '../types';
 import { getInitials } from '../utils/storage';
 
+// Debounce hook for username validation
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
 interface EditProfileModalProps {
   profileData: ProfileData;
   statistics: Statistics;
   walletAddress: string;
   onSave: (data: Partial<ProfileData>) => Promise<void>;
   onClose: () => void;
+  checkUsernameAvailability?: (username: string) => Promise<boolean>;
 }
 
 const EditProfileModal: React.FC<EditProfileModalProps> = ({ 
@@ -15,7 +33,8 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
   statistics: _statistics, 
   walletAddress,
   onSave, 
-  onClose 
+  onClose,
+  checkUsernameAvailability
 }) => {
   const [formData, setFormData] = useState({
     name: profileData.name || '',
@@ -58,10 +77,49 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
 
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [checkingUsername, setCheckingUsername] = useState(false);
+  
+  // Debounce username for validation
+  const debouncedUsername = useDebounce(formData.username, 500);
+  
+  // Check username availability when debounced value changes
+  useEffect(() => {
+    if (checkUsernameAvailability && debouncedUsername.trim().length >= 3) {
+      setCheckingUsername(true);
+      setUsernameError(null);
+      
+      checkUsernameAvailability(debouncedUsername)
+        .then((isAvailable) => {
+          if (!isAvailable) {
+            setUsernameError('This username is already taken');
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to check username:', err);
+          // Don't set error on check failure - will be caught on save
+        })
+        .finally(() => {
+          setCheckingUsername(false);
+        });
+    } else if (debouncedUsername.trim().length > 0 && debouncedUsername.trim().length < 3) {
+      setUsernameError('Username must be at least 3 characters');
+    } else {
+      setUsernameError(null);
+    }
+  }, [debouncedUsername, checkUsernameAvailability]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setUsernameError(null);
+    
+    // If there's a username error, don't submit
+    if (usernameError) {
+      setError('Please fix the username error before saving.');
+      return;
+    }
+    
     setSaving(true);
     
     try {
@@ -72,7 +130,13 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       onClose();
     } catch (err) {
       if (err instanceof Error) {
-        setError(err.message);
+        const errorMessage = err.message;
+        setError(errorMessage);
+        
+        // If it's a username error, also set usernameError
+        if (errorMessage.includes('Username already taken') || errorMessage.includes('username')) {
+          setUsernameError('This username is already taken');
+        }
       } else {
         setError('Failed to save profile. Please try again.');
       }
@@ -189,12 +253,33 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
                     <span className="username-prefix">@</span>
                     <input 
                       type="text" 
-                      className="username-input" 
+                      className={`username-input ${usernameError ? 'error' : ''}`}
                       id="editUsername" 
                       placeholder="Your Username" 
                       value={formData.username}
-                      onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                      onChange={(e) => {
+                        setFormData({ ...formData, username: e.target.value });
+                        // Clear error immediately when user types
+                        if (usernameError && e.target.value.trim().length >= 3) {
+                          setUsernameError(null);
+                        }
+                      }}
                     />
+                    {checkingUsername && (
+                      <span style={{ marginLeft: '0.5rem', fontSize: '0.8rem', color: 'var(--text-light)' }}>
+                        Checking...
+                      </span>
+                    )}
+                    {usernameError && (
+                      <div style={{ 
+                        color: 'var(--error-color, #e74c3c)', 
+                        fontSize: '0.75rem', 
+                        marginTop: '0.25rem',
+                        marginLeft: '1.5rem'
+                      }}>
+                        {usernameError}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="profile-field-group">

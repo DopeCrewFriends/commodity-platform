@@ -76,12 +76,8 @@ export function useProfile(walletAddress: string) {
 
   const updateProfile = async (data: Partial<ProfileData>) => {
     const updated = { ...profileData!, ...data };
-    setProfileData(updated);
     
-    // Save to localStorage immediately
-    saveUserData(walletAddress, 'profileData', updated);
-    
-    // Also save to API
+    // Save to API first (this validates username uniqueness)
     try {
       await apiRequest('/api/profiles', {
         method: 'POST',
@@ -95,12 +91,40 @@ export function useProfile(walletAddress: string) {
           username: (updated as any).username
         })
       });
+      
+      // Only update state and localStorage if API save succeeds
+      setProfileData(updated);
+      saveUserData(walletAddress, 'profileData', updated);
     } catch (error) {
       console.error('Failed to save profile to API:', error);
-      // If API fails, show error to user
-      if (error instanceof Error && error.message.includes('Username already taken')) {
-        throw error; // Re-throw so EditProfileModal can show the error
-      }
+      // Re-throw the error so EditProfileModal can show it
+      throw error;
+    }
+  };
+  
+  // Check if username is available (for real-time validation)
+  const checkUsernameAvailability = async (username: string): Promise<boolean> => {
+    if (!username || username.trim().length < 3) {
+      return true; // Empty or too short is considered "available" (will be validated on save)
+    }
+    
+    try {
+      const usernameLower = username.toLowerCase().trim();
+      // Check if any other user has this username
+      const response = await apiRequest<{ users: Array<{ walletAddress: string; username?: string }> }>(
+        `/api/profiles/search?q=${encodeURIComponent(usernameLower)}&exclude=${walletAddress}`
+      );
+      
+      // Check if any user in results has the exact same username (case-insensitive)
+      const isTaken = response.users?.some(
+        user => user.username && user.username.toLowerCase().trim() === usernameLower
+      );
+      
+      return !isTaken;
+    } catch (error) {
+      console.error('Failed to check username availability:', error);
+      // If check fails, allow it (will be validated on save)
+      return true;
     }
   };
 
@@ -119,6 +143,7 @@ export function useProfile(walletAddress: string) {
     statistics,
     loading,
     updateProfile,
+    checkUsernameAvailability,
     isProfileComplete: isProfileComplete()
   };
 }

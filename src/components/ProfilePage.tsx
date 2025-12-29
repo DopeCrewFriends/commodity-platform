@@ -23,7 +23,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
   onTriggerEdit
 }) => {
   const { balances, solPrice, loading, priceLoading } = useBalances(walletAddress);
-  const { profileData, statistics, updateProfile, isProfileComplete } = useProfile(walletAddress);
+  const { profileData, statistics, updateProfile, checkUsernameAvailability, isProfileComplete } = useProfile(walletAddress);
   const { escrowsData } = useEscrows(walletAddress);
   const { tradeHistory, activeFilter, setActiveFilter } = useTradeHistory(walletAddress);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -191,6 +191,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
           walletAddress={walletAddress}
           onSave={updateProfile}
           onClose={() => setShowEditModal(false)}
+          checkUsernameAvailability={checkUsernameAvailability}
         />
       )}
     </>
