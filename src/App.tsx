@@ -25,11 +25,8 @@ function App() {
     try {
       const address = await connect();
       setShowWalletModal(false);
-      // Check if profile needs completion
-      const profileData = localStorage.getItem(`user_${address}_profileData`);
-      if (!profileData) {
-        setShowProfileCompletion(true);
-      }
+      // Profile completion check will be handled by ProfilePage based on API data
+      // We'll show completion modal if profile is incomplete
     } catch (error) {
       console.error('Failed to connect wallet:', error);
     }
@@ -58,10 +55,8 @@ function App() {
             walletAddress={walletAddress}
             onDisconnect={handleDisconnect}
             onShowProfileCompletion={() => {
-              const profileData = localStorage.getItem(`user_${walletAddress}_profileData`);
-              if (!profileData) {
-                setShowProfileCompletion(true);
-              }
+              // Profile completion is now checked via API in ProfilePage
+              // This callback is kept for compatibility but doesn't need localStorage check
             }}
             onTriggerEdit={(openEdit) => {
               setOpenEditProfile(() => openEdit);

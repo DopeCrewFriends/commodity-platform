@@ -85,41 +85,68 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
   
   // Check username availability when debounced value changes
   useEffect(() => {
-    if (checkUsernameAvailability && debouncedUsername.trim().length >= 3) {
-      setCheckingUsername(true);
-      setUsernameError(null);
-      
-      checkUsernameAvailability(debouncedUsername)
-        .then((isAvailable) => {
-          if (!isAvailable) {
-            setUsernameError('This username is already taken');
-          }
-        })
-        .catch((err) => {
-          console.error('Failed to check username:', err);
-          // Don't set error on check failure - will be caught on save
-        })
-        .finally(() => {
-          setCheckingUsername(false);
-        });
-    } else if (debouncedUsername.trim().length > 0 && debouncedUsername.trim().length < 3) {
-      setUsernameError('Username must be at least 3 characters');
-    } else {
-      setUsernameError(null);
+    let isMounted = true;
+    
+    // Reset checking state if username is too short or empty
+    if (debouncedUsername.trim().length < 3) {
+      setCheckingUsername(false);
+      if (debouncedUsername.trim().length > 0) {
+        setUsernameError('Username must be at least 3 characters');
+      } else {
+        setUsernameError(null);
+      }
+      return;
     }
+
+    // Only check if checkUsernameAvailability is provided
+    if (!checkUsernameAvailability) {
+      setCheckingUsername(false);
+      setUsernameError(null);
+      return;
+    }
+
+    // Set up timeout to prevent permanent "checking" state
+    const timeoutId = setTimeout(() => {
+      if (isMounted) {
+        setCheckingUsername(false);
+      }
+    }, 5000); // 5 second timeout
+
+    setCheckingUsername(true);
+    setUsernameError(null);
+    
+    checkUsernameAvailability(debouncedUsername)
+      .then((isAvailable) => {
+        if (!isMounted) return;
+        clearTimeout(timeoutId);
+        setCheckingUsername(false);
+        if (!isAvailable) {
+          setUsernameError('This username is already taken');
+        }
+      })
+      .catch((err) => {
+        if (!isMounted) return;
+        clearTimeout(timeoutId);
+        setCheckingUsername(false);
+        console.error('Failed to check username availability (will validate on save):', err);
+        // Don't show error to user - validation will happen on save
+        // This prevents "Failed to fetch" from showing during typing
+      });
+
+    // Cleanup function
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
   }, [debouncedUsername, checkUsernameAvailability]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setUsernameError(null);
+    setCheckingUsername(false); // Stop any ongoing checks
     
-    // If there's a username error, don't submit
-    if (usernameError) {
-      setError('Please fix the username error before saving.');
-      return;
-    }
-    
+    // Don't block submission based on real-time validation errors
+    // The API will validate on save and show the error if needed
     setSaving(true);
     
     try {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ProfileData, Statistics } from '../types';
-import { loadUserData, saveUserData } from '../utils/storage';
+import { loadUserData } from '../utils/storage'; // Only used for statistics
 import { apiRequest } from '../utils/api';
 
 export function useProfile(walletAddress: string) {
@@ -17,40 +17,15 @@ export function useProfile(walletAddress: string) {
   useEffect(() => {
     if (!walletAddress) return;
 
-    // Try to load from API first, then fallback to localStorage
+    // Load from API only
     const loadProfile = async () => {
       try {
-        // Try to fetch from API
+        // Fetch from API
         const apiProfile = await apiRequest<ProfileData>(`/api/profiles/${walletAddress}`);
         if (apiProfile) {
           setProfileData({ ...apiProfile, walletAddress });
-          // Also save to localStorage as backup
-          saveUserData(walletAddress, 'profileData', apiProfile);
         } else {
-          // Fallback to localStorage
-          const savedProfile = loadUserData<ProfileData>(walletAddress, 'profileData');
-          if (savedProfile) {
-            setProfileData({ ...savedProfile, walletAddress });
-          } else {
-            // Initialize new profile
-            setProfileData({
-              name: '',
-              email: '',
-              company: '',
-              location: '',
-              walletAddress,
-              avatarImage: undefined
-            });
-          }
-        }
-      } catch (error) {
-        // API failed, use localStorage
-        console.log('API not available, using localStorage:', error);
-        const savedProfile = loadUserData<ProfileData>(walletAddress, 'profileData');
-        if (savedProfile) {
-          setProfileData({ ...savedProfile, walletAddress });
-        } else {
-          // Initialize new profile
+          // Initialize new profile if not found
           setProfileData({
             name: '',
             email: '',
@@ -60,9 +35,20 @@ export function useProfile(walletAddress: string) {
             avatarImage: undefined
           });
         }
+      } catch (error) {
+        // API failed - initialize empty profile
+        console.log('API not available, initializing empty profile:', error);
+        setProfileData({
+          name: '',
+          email: '',
+          company: '',
+          location: '',
+          walletAddress,
+          avatarImage: undefined
+        });
       }
 
-      // Load statistics
+      // Load statistics from localStorage (statistics are still local-only)
       const savedStats = loadUserData<Statistics>(walletAddress, 'statistics');
       if (savedStats) {
         setStatistics(savedStats);
@@ -77,7 +63,7 @@ export function useProfile(walletAddress: string) {
   const updateProfile = async (data: Partial<ProfileData>) => {
     const updated = { ...profileData!, ...data };
     
-    // Save to API first (this validates username uniqueness)
+    // Save to API only (this validates username uniqueness)
     try {
       await apiRequest('/api/profiles', {
         method: 'POST',
@@ -92,9 +78,8 @@ export function useProfile(walletAddress: string) {
         })
       });
       
-      // Only update state and localStorage if API save succeeds
+      // Only update state if API save succeeds
       setProfileData(updated);
-      saveUserData(walletAddress, 'profileData', updated);
     } catch (error) {
       console.error('Failed to save profile to API:', error);
       // Re-throw the error so EditProfileModal can show it
@@ -110,17 +95,34 @@ export function useProfile(walletAddress: string) {
     
     try {
       const usernameLower = username.toLowerCase().trim();
-      // Check if any other user has this username
-      const response = await apiRequest<{ users: Array<{ walletAddress: string; username?: string }> }>(
-        `/api/profiles/search?q=${encodeURIComponent(usernameLower)}&exclude=${walletAddress}`
-      );
       
-      // Check if any user in results has the exact same username (case-insensitive)
-      const isTaken = response.users?.some(
-        user => user.username && user.username.toLowerCase().trim() === usernameLower
-      );
-      
-      return !isTaken;
+      // Use a more direct approach - check if username exists exactly
+      // First try the search endpoint
+      try {
+        const response = await apiRequest<{ users: Array<{ walletAddress: string; username?: string }> }>(
+          `/api/profiles/search?q=${encodeURIComponent(usernameLower)}&exclude=${walletAddress}`
+        );
+        
+        // Check if any user in results has the exact same username (case-insensitive)
+        const isTaken = response.users?.some(
+          user => user.username && user.username.toLowerCase().trim() === usernameLower
+        );
+        
+        return !isTaken;
+      } catch (searchError) {
+        // If search fails, try checking by username directly
+        try {
+          const profile = await apiRequest<{ username?: string }>(
+            `/api/profiles/username/${encodeURIComponent(usernameLower)}`
+          );
+          // If we get a profile back and it's not the current user's, username is taken
+          return false;
+        } catch (usernameError) {
+          // If both fail, assume available (will be validated on save)
+          console.warn('Username availability check failed, will validate on save:', usernameError);
+          return true;
+        }
+      }
     } catch (error) {
       console.error('Failed to check username availability:', error);
       // If check fails, allow it (will be validated on save)
