@@ -96,34 +96,58 @@ export function useProfile(walletAddress: string) {
     try {
       const usernameLower = username.toLowerCase().trim();
       
+      // Create a timeout promise to prevent hanging
+      const timeoutPromise = new Promise<boolean>((_, reject) => {
+        setTimeout(() => reject(new Error('Request timeout')), 3000);
+      });
+      
       // Use a more direct approach - check if username exists exactly
-      // First try the search endpoint
-      try {
-        const response = await apiRequest<{ users: Array<{ walletAddress: string; username?: string }> }>(
-          `/api/profiles/search?q=${encodeURIComponent(usernameLower)}&exclude=${walletAddress}`
-        );
-        
-        // Check if any user in results has the exact same username (case-insensitive)
-        const isTaken = response.users?.some(
-          user => user.username && user.username.toLowerCase().trim() === usernameLower
-        );
-        
-        return !isTaken;
-      } catch (searchError) {
-        // If search fails, try checking by username directly
+      const checkPromise = (async () => {
         try {
-          const profile = await apiRequest<{ username?: string }>(
-            `/api/profiles/username/${encodeURIComponent(usernameLower)}`
+          // First try the search endpoint
+          const response = await apiRequest<{ users: Array<{ walletAddress: string; username?: string }> }>(
+            `/api/profiles/search?q=${encodeURIComponent(usernameLower)}&exclude=${walletAddress}`
           );
-          // If we get a profile back and it's not the current user's, username is taken
-          return false;
-        } catch (usernameError) {
-          // If both fail, assume available (will be validated on save)
-          console.warn('Username availability check failed, will validate on save:', usernameError);
-          return true;
+          
+          // Check if any user in results has the exact same username (case-insensitive)
+          const isTaken = response.users?.some(
+            user => user.username && user.username.toLowerCase().trim() === usernameLower
+          );
+          
+          return !isTaken;
+        } catch (searchError: any) {
+          // If search returns 503 (Database not configured), skip real-time validation
+          if (searchError.message?.includes('503') || searchError.message?.includes('Database not configured')) {
+            console.log('Database not configured, skipping real-time username validation');
+            return true; // Allow it, will be validated on save
+          }
+          
+          // If search fails, try checking by username directly
+          try {
+            const profile = await apiRequest<{ username?: string }>(
+              `/api/profiles/username/${encodeURIComponent(usernameLower)}`
+            );
+            // If we get a profile back and it's not the current user's, username is taken
+            return false;
+          } catch (usernameError: any) {
+            // If username endpoint also returns 503, skip validation
+            if (usernameError.message?.includes('503') || usernameError.message?.includes('Database not configured')) {
+              console.log('Database not configured, skipping real-time username validation');
+              return true;
+            }
+            throw usernameError;
+          }
         }
+      })();
+      
+      // Race between the check and timeout
+      return await Promise.race([checkPromise, timeoutPromise]);
+    } catch (error: any) {
+      // If it's a timeout or database not configured, allow it (will be validated on save)
+      if (error.message?.includes('timeout') || error.message?.includes('503') || error.message?.includes('Database not configured')) {
+        console.log('Username availability check unavailable, will validate on save');
+        return true;
       }
-    } catch (error) {
       console.error('Failed to check username availability:', error);
       // If check fails, allow it (will be validated on save)
       return true;

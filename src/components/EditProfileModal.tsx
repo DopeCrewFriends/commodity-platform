@@ -110,7 +110,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       if (isMounted) {
         setCheckingUsername(false);
       }
-    }, 5000); // 5 second timeout
+    }, 3000); // 3 second timeout
 
     setCheckingUsername(true);
     setUsernameError(null);
