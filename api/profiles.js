@@ -59,16 +59,24 @@ export default async function handler(req, res) {
 
       if (supabase) {
         // Use Supabase
-        // Check if username is taken (if provided)
+        // Check if username is taken (if provided) - case-insensitive
         if (username) {
-          const { data: existingUser } = await supabase
+          const usernameLower = username.toLowerCase().trim();
+          
+          // Check for existing username (case-insensitive)
+          const { data: existingUsers, error: checkError } = await supabase
             .from('profiles')
-            .select('wallet_address')
-            .eq('username', username)
-            .neq('wallet_address', walletAddress)
-            .single();
+            .select('wallet_address, username')
+            .neq('wallet_address', walletAddress);
 
-          if (existingUser) {
+          if (checkError) throw checkError;
+
+          // Check if any existing user has the same username (case-insensitive)
+          const usernameTaken = existingUsers?.some(
+            user => user.username && user.username.toLowerCase().trim() === usernameLower
+          );
+
+          if (usernameTaken) {
             return res.status(409).json({ error: 'Username already taken' });
           }
         }
@@ -81,7 +89,9 @@ export default async function handler(req, res) {
           .single();
 
         if (existing) {
-          // Update existing profile
+          // Update existing profile - normalize username to lowercase
+          const normalizedUsername = username ? username.toLowerCase().trim() : null;
+          
           const { error } = await supabase
             .from('profiles')
             .update({
@@ -90,14 +100,22 @@ export default async function handler(req, res) {
               company,
               location,
               avatar_image: avatarImage,
-              username,
+              username: normalizedUsername,
               last_updated: now
             })
             .eq('wallet_address', walletAddress);
 
-          if (error) throw error;
+          if (error) {
+            // Check if error is due to unique constraint violation
+            if (error.code === '23505' || error.message?.includes('unique')) {
+              return res.status(409).json({ error: 'Username already taken' });
+            }
+            throw error;
+          }
         } else {
-          // Insert new profile
+          // Insert new profile - normalize username to lowercase for consistency
+          const normalizedUsername = username ? username.toLowerCase().trim() : null;
+          
           const { error } = await supabase
             .from('profiles')
             .insert({
@@ -107,12 +125,18 @@ export default async function handler(req, res) {
               company,
               location,
               avatar_image: avatarImage,
-              username,
+              username: normalizedUsername,
               created_at: now,
               last_updated: now
             });
 
-          if (error) throw error;
+          if (error) {
+            // Check if error is due to unique constraint violation
+            if (error.code === '23505' || error.message?.includes('unique')) {
+              return res.status(409).json({ error: 'Username already taken' });
+            }
+            throw error;
+          }
         }
       } else {
         // Fallback: in-memory storage (development only)

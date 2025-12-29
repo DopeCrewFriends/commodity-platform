@@ -126,35 +126,43 @@ def save_profile():
         cursor.execute('SELECT wallet_address FROM profiles WHERE wallet_address = ?', (wallet_address,))
         exists = cursor.fetchone()
         
-        # Check for username uniqueness if username is provided
+        # Check for username uniqueness if username is provided (case-insensitive)
         if username:
+            username_lower = username.lower().strip()
             cursor.execute('''
-                SELECT wallet_address FROM profiles 
-                WHERE username = ? AND wallet_address != ?
-            ''', (username, wallet_address))
-            username_exists = cursor.fetchone()
-            if username_exists:
-                conn.close()
-                return jsonify({'error': 'Username already taken'}), 409
+                SELECT wallet_address, username FROM profiles 
+                WHERE wallet_address != ?
+            ''', (wallet_address,))
+            all_profiles = cursor.fetchall()
+            
+            # Check if any existing profile has the same username (case-insensitive)
+            for profile in all_profiles:
+                if profile['username'] and profile['username'].lower().strip() == username_lower:
+                    conn.close()
+                    return jsonify({'error': 'Username already taken'}), 409
         
         if exists:
             # Update existing profile
             created_at = cursor.execute('SELECT created_at FROM profiles WHERE wallet_address = ?', (wallet_address,)).fetchone()
             created_at = created_at['created_at'] if created_at else now
             
+            # Normalize username to lowercase for storage
+            username_normalized = username.lower().strip() if username else None
             cursor.execute('''
                 UPDATE profiles 
                 SET name = ?, email = ?, company = ?, location = ?, 
                     avatar_image = ?, username = ?, last_updated = ?
                 WHERE wallet_address = ?
-            ''', (name, email, company, location, avatar_image, username, now, wallet_address))
+            ''', (name, email, company, location, avatar_image, username_normalized, now, wallet_address))
         else:
             # Insert new profile
+            # Normalize username to lowercase for storage
+            username_normalized = username.lower().strip() if username else None
             cursor.execute('''
                 INSERT INTO profiles 
                 (wallet_address, name, email, company, location, avatar_image, username, created_at, last_updated)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (wallet_address, name, email, company, location, avatar_image, username, now, now))
+            ''', (wallet_address, name, email, company, location, avatar_image, username_normalized, now, now))
         
         conn.commit()
         conn.close()

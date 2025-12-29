@@ -6,7 +6,7 @@ interface EditProfileModalProps {
   profileData: ProfileData;
   statistics: Statistics;
   walletAddress: string;
-  onSave: (data: Partial<ProfileData>) => void;
+  onSave: (data: Partial<ProfileData>) => Promise<void>;
   onClose: () => void;
 }
 
@@ -56,13 +56,29 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSave({
-      ...formData,
-      avatarImage: avatarImage || undefined
-    });
-    onClose();
+    setError(null);
+    setSaving(true);
+    
+    try {
+      await onSave({
+        ...formData,
+        avatarImage: avatarImage || undefined
+      });
+      onClose();
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Failed to save profile. Please try again.');
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const initials = getInitials(formData.name || '', walletAddress);
@@ -73,10 +89,12 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
         <form id="editProfileForm" className="edit-profile-form" onSubmit={handleSubmit}>
           <div className="profile-section profile-section-editing" id="editingProfileCard">
             <div className="profile-actions">
-              <button type="button" className="btn btn-secondary" id="cancelEditBtn" onClick={onClose}>
+              <button type="button" className="btn btn-secondary" id="cancelEditBtn" onClick={onClose} disabled={saving}>
                 Cancel
               </button>
-              <button type="submit" className="btn btn-primary">Save Changes</button>
+              <button type="submit" className="btn btn-primary" disabled={saving}>
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
             </div>
             <div className="profile-avatar-edit-container">
               <div className="profile-avatar">
@@ -232,6 +250,18 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
                 </div>
               </div>
             </div>
+            {error && (
+              <div style={{ 
+                color: 'var(--error-color, #e74c3c)', 
+                padding: '0.75rem', 
+                marginTop: '1rem',
+                background: 'var(--error-bg, rgba(231, 76, 60, 0.1))',
+                borderRadius: '4px',
+                textAlign: 'center'
+              }}>
+                {error}
+              </div>
+            )}
           </div>
         </form>
       </div>

@@ -14,9 +14,10 @@ CREATE TABLE IF NOT EXISTS profiles (
     last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Create unique index on username (only for non-null usernames)
+-- Create unique index on username (case-insensitive, only for non-null usernames)
+-- Using LOWER() to ensure case-insensitive uniqueness
 CREATE UNIQUE INDEX IF NOT EXISTS idx_username_unique 
-ON profiles(username) 
+ON profiles(LOWER(username)) 
 WHERE username IS NOT NULL AND username != '';
 
 -- Create indexes for faster searches
