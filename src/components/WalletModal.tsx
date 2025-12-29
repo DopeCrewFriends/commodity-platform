@@ -10,7 +10,8 @@ const WalletModal: React.FC<WalletModalProps> = ({ onConnect, onClose }) => {
   const [connecting, setConnecting] = useState(false);
 
   const isPhantomInstalled = () => {
-    return window.solana?.isPhantom;
+    if (typeof window === 'undefined') return false;
+    return window.solana?.isPhantom || (window as any).phantom?.solana?.isPhantom;
   };
 
   const handleConnect = async () => {
@@ -25,10 +26,13 @@ const WalletModal: React.FC<WalletModalProps> = ({ onConnect, onClose }) => {
     try {
       await onConnect();
     } catch (err: any) {
-      if (err.code === 4001) {
-        setError('Connection rejected. Please try again.');
+      console.error('Wallet connection error:', err);
+      if (err.code === 4001 || err.message?.includes('rejected')) {
+        setError('Connection rejected. Please approve the connection in your Phantom wallet.');
+      } else if (err.message?.includes('not found')) {
+        setError('Phantom wallet not found. Please make sure the extension is installed and enabled.');
       } else {
-        setError('Failed to connect to Phantom wallet. Please try again.');
+        setError(err.message || 'Failed to connect to Phantom wallet. Please try again.');
       }
     } finally {
       setConnecting(false);
