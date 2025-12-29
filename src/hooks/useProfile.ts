@@ -104,18 +104,13 @@ export function useProfile(walletAddress: string) {
     try {
       const usernameLower = username.toLowerCase().trim();
       
-      // Create a timeout promise to prevent hanging (reduced to 2 seconds)
-      const timeoutPromise = new Promise<boolean>((resolve) => {
-        setTimeout(() => {
-          console.warn('Username check timeout, disabling real-time validation');
-          validationDisabled = true; // Disable after timeout to prevent more attempts
-          resolve(true); // Return true to allow username
-        }, 2000);
-      });
-      
       // Use AbortController for fetch cancellation
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2000);
+      const timeoutId = setTimeout(() => {
+        console.warn('Username check timeout, disabling real-time validation');
+        validationDisabled = true; // Disable after timeout to prevent more attempts
+        controller.abort();
+      }, 2000);
       
       try {
         // First try the search endpoint with abort signal
