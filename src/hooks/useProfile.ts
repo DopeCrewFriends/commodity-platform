@@ -124,7 +124,7 @@ export function useProfile(walletAddress: string) {
           
           // If search fails, try checking by username directly
           try {
-            const profile = await apiRequest<{ username?: string }>(
+            await apiRequest<{ username?: string }>(
               `/api/profiles/username/${encodeURIComponent(usernameLower)}`
             );
             // If we get a profile back and it's not the current user's, username is taken

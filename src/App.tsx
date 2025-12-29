@@ -23,7 +23,7 @@ function App() {
 
   const handleConnectWallet = async () => {
     try {
-      const address = await connect();
+      await connect();
       setShowWalletModal(false);
       // Profile completion check will be handled by ProfilePage based on API data
       // We'll show completion modal if profile is incomplete
