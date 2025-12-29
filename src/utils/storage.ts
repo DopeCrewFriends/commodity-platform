@@ -48,3 +48,47 @@ export function getInitials(name: string, fallback: string = ''): string {
   return fallback.slice(0, 2).toUpperCase();
 }
 
+/**
+ * Clear all user data from localStorage
+ * This removes all user-specific data but keeps theme preference
+ */
+export function clearAllUserData(): void {
+  try {
+    const keys = Object.keys(localStorage);
+    
+    // Remove all keys that start with 'user_' (user data pattern)
+    const userDataKeys = keys.filter(key => key.startsWith('user_'));
+    userDataKeys.forEach(key => localStorage.removeItem(key));
+    
+    // Remove wallet-related keys
+    localStorage.removeItem('walletAddress');
+    localStorage.removeItem('walletConnected');
+    
+    console.log(`Cleared ${userDataKeys.length} user data entries from localStorage`);
+  } catch (error) {
+    console.error('Error clearing user data:', error);
+    throw error;
+  }
+}
+
+/**
+ * Clear user data for a specific wallet address
+ */
+export function clearUserDataByWallet(walletAddress: string): void {
+  try {
+    if (!walletAddress) return;
+    
+    const keys = Object.keys(localStorage);
+    const userDataKeys = keys.filter(key => 
+      key.startsWith(`user_${walletAddress}_`)
+    );
+    
+    userDataKeys.forEach(key => localStorage.removeItem(key));
+    
+    console.log(`Cleared ${userDataKeys.length} entries for wallet ${walletAddress}`);
+  } catch (error) {
+    console.error('Error clearing user data:', error);
+    throw error;
+  }
+}
+

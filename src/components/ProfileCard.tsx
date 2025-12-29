@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ProfileData, Statistics } from '../types';
-import { getInitials } from '../utils/storage';
+import { getInitials, clearAllUserData } from '../utils/storage';
 
 interface ProfileCardProps {
   profileData: ProfileData;
@@ -40,12 +40,32 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ profileData, statistics, onEd
     return String(value);
   };
 
+  const handleClearData = () => {
+    if (confirm('Are you sure you want to delete ALL user data? This will clear all profiles, contacts, escrows, and other data. This action cannot be undone.')) {
+      clearAllUserData();
+      alert('All user data has been cleared. Please refresh the page.');
+      window.location.reload();
+    }
+  };
+
   return (
     <div className="profile-section" id="profileCard">
       <div className="profile-actions">
         <button className="btn btn-primary edit-profile-btn" id="editProfileBtn" onClick={onEditClick}>
           <span>✏️</span>
           Edit Profile
+        </button>
+        <button 
+          className="btn btn-secondary" 
+          onClick={handleClearData}
+          style={{ 
+            marginLeft: '0.5rem',
+            fontSize: '0.75rem',
+            padding: '0.375rem 0.75rem'
+          }}
+          title="Clear all user data"
+        >
+          🗑️ Clear Data
         </button>
       </div>
       <div className="profile-avatar-display-container">
