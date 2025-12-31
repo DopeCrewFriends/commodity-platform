@@ -78,8 +78,20 @@ export function useProfile(walletAddress: string) {
         })
       });
       
-      // Only update state if API save succeeds
-      setProfileData(updated);
+      // Reload profile from API to get the latest data (including username)
+      try {
+        const apiProfile = await apiRequest<ProfileData>(`/api/profiles/${walletAddress}`);
+        if (apiProfile) {
+          setProfileData({ ...apiProfile, walletAddress });
+        } else {
+          // Fallback to updated data if API doesn't return it
+          setProfileData(updated);
+        }
+      } catch (reloadError) {
+        // If reload fails, use the updated data
+        console.log('Failed to reload profile, using updated data:', reloadError);
+        setProfileData(updated);
+      }
     } catch (error) {
       console.error('Failed to save profile to API:', error);
       // Re-throw the error so EditProfileModal can show it
@@ -168,11 +180,11 @@ export function useProfile(walletAddress: string) {
 
   const isProfileComplete = (): boolean => {
     if (!profileData) return false;
+    // Required fields: name, email, and username
     return !!(
       profileData.name?.trim() &&
       profileData.email?.trim() &&
-      profileData.company?.trim() &&
-      profileData.location?.trim()
+      (profileData as any).username?.trim()
     );
   };
 

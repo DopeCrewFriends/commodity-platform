@@ -5,15 +5,17 @@ const getApiBaseUrl = () => {
     return import.meta.env.VITE_API_URL;
   }
   
-  // In development, use localhost Flask server
-  if (import.meta.env.DEV) {
-    return 'http://localhost:5000';
-  }
-  
-  // In production on Vercel, use the same domain (serverless functions)
-  // This automatically works because API routes are on the same domain
+  // Always use the same origin (works for both dev and production)
+  // In development with Vite, this will be http://localhost:3000
+  // In production on Vercel, this will be the Vercel domain
+  // Vercel serverless functions work on the same domain
   if (typeof window !== 'undefined') {
     return window.location.origin;
+  }
+  
+  // Fallback for server-side rendering
+  if (import.meta.env.DEV) {
+    return 'http://localhost:3000';
   }
   
   // Fallback
@@ -31,13 +33,18 @@ export async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<T> {
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const url = `${API_BASE_URL}${endpoint}`;
+    console.log('API Request:', url, options.method || 'GET'); // Debug log
+    
+    const response = await fetch(url, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
         ...options.headers,
       },
     });
+
+    console.log('API Response:', response.status, response.statusText); // Debug log
 
     if (!response.ok) {
       const error: ApiError = await response.json().catch(() => ({
@@ -48,7 +55,16 @@ export async function apiRequest<T>(
 
     return await response.json();
   } catch (error) {
+    console.error('API Request Error:', error); // Debug log
     if (error instanceof Error) {
+      // Provide more helpful error messages
+      if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError') || error.message.includes('Failed to connect')) {
+        const isDev = import.meta.env.DEV;
+        const message = isDev 
+          ? 'Failed to connect to API. Make sure you are running `vercel dev` (not just `npm run dev`). The API routes only work with Vercel dev server.'
+          : 'Failed to connect to API. The API may not be deployed or there is a network issue.';
+        throw new Error(message);
+      }
       throw error;
     }
     throw new Error('Network error: Failed to connect to API');

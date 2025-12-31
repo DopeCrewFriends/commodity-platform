@@ -112,3 +112,4 @@ vercel dev
 - **Development**: Uses Flask server with SQLite (local only)
 - **Production**: Uses Vercel serverless functions with Supabase (shared across all users)
 
+

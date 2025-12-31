@@ -34,3 +34,9 @@ pnpm-lock.yaml
 .env.development.local
 .env.*.local
 
+
+.vercel
+.env*.local
+
+.vercel
+.env*.local

@@ -1,4 +1,4 @@
-// Vercel serverless function for searching profiles
+// Vercel serverless function for getting all profiles
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -21,23 +21,17 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { q: query, exclude } = req.query;
-
-  if (!query || query.trim().length < 2) {
-    return res.status(200).json({ users: [] });
-  }
+  const { exclude } = req.query;
 
   try {
     if (supabase) {
-      const searchPattern = `%${query.trim()}%`;
-      
-      // Search only by username
       let queryBuilder = supabase
         .from('profiles')
         .select('*')
-        .ilike('username', searchPattern)
         .not('username', 'is', null)
-        .limit(50);
+        .neq('username', '')
+        .limit(100)
+        .order('username', { ascending: true });
 
       if (exclude) {
         queryBuilder = queryBuilder.neq('wallet_address', exclude);
@@ -57,17 +51,12 @@ export default async function handler(req, res) {
         username: row.username
       }));
 
-      // Sort by username
-      users.sort((a, b) => {
-        return (a.username || '').localeCompare(b.username || '');
-      });
-
       return res.status(200).json({ users });
     } else {
       return res.status(503).json({ error: 'Database not configured' });
     }
   } catch (error) {
-    console.error('Search profiles error:', error);
+    console.error('Get all profiles error:', error);
     return res.status(500).json({ error: error.message || 'Internal server error' });
   }
 }

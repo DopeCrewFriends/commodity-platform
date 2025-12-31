@@ -5,6 +5,7 @@ export interface ProfileData {
   location: string;
   avatarImage?: string;
   walletAddress: string;
+  username?: string;
 }
 
 export interface Contact {
