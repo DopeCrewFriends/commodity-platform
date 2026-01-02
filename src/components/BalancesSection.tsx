@@ -71,11 +71,6 @@ const BalancesSection: React.FC<BalancesSectionProps> = ({ balances, solPrice, l
                 </div>
               </div>
             </div>
-            {balances.SOL.amount === 0 && balances.USDC.amount === 0 && !loading && (
-              <div className="no-tokens-message" id="noTokensMessage" style={{ display: 'block' }}>
-                <p>No token balances found</p>
-              </div>
-            )}
           </div>
         </div>
       </div>
