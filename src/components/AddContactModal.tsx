@@ -1,18 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { useContacts } from '../hooks/useContacts';
 import { ProfileData } from '../types';
+import { getInitials } from '../utils/storage';
 
 interface AddContactModalProps {
   onClose: () => void;
 }
 
 const AddContactModal: React.FC<AddContactModalProps> = ({ onClose }) => {
-  const { addContact, searchUsers } = useContacts();
+  const { addContact, searchUsers, getTopUsers } = useContacts();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<ProfileData[]>([]);
+  const [topUsers, setTopUsers] = useState<ProfileData[]>([]);
   const [selectedUser, setSelectedUser] = useState<ProfileData | null>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [loadingTopUsers, setLoadingTopUsers] = useState(true);
   const [error, setError] = useState('');
+
+  // Load top users when modal opens
+  useEffect(() => {
+    const loadTopUsers = async () => {
+      setLoadingTopUsers(true);
+      try {
+        const users = await getTopUsers(5);
+        setTopUsers(users);
+      } catch (err) {
+        console.error('Error loading top users:', err);
+      } finally {
+        setLoadingTopUsers(false);
+      }
+    };
+
+    loadTopUsers();
+  }, [getTopUsers]);
 
   // Search users when query changes
   useEffect(() => {
@@ -59,18 +79,55 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ onClose }) => {
     }
   };
 
+  const renderUserItem = (user: ProfileData, isSelected: boolean = false) => {
+    const initials = getInitials(user.name || '', user.walletAddress || user.username || '');
+    
+    return (
+      <div
+        key={user.username || user.walletAddress}
+        onClick={() => !isSelected && handleSelectUser(user)}
+        className={isSelected ? '' : 'contact-item'}
+        style={isSelected ? {} : {
+          cursor: 'pointer',
+          marginBottom: '0.5rem'
+        }}
+      >
+        <div className="contact-avatar">{initials}</div>
+        <div className="contact-info">
+          <div className="contact-name">
+            {user.name || 'Unknown'}
+            {user.username && (
+              <span style={{ color: '#666', fontSize: '0.9em', marginLeft: '0.5rem' }}>
+                @{user.username}
+              </span>
+            )}
+          </div>
+          <div className="contact-email">{user.email || 'No email'}</div>
+          {user.company && (
+            <div style={{ fontSize: '0.85em', color: '#666', marginTop: '0.25rem' }}>
+              {user.company}
+            </div>
+          )}
+          {user.walletAddress && (
+            <div className="contact-wallet">{user.walletAddress}</div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="wallet-modal active" onClick={onClose}>
       <div className="wallet-modal-overlay"></div>
       <div className="wallet-modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="wallet-modal-header">
           <h2>Add Contact</h2>
-          <p>Search by username (e.g., username)</p>
+          <p>Search by username or browse top users</p>
         </div>
         <form onSubmit={handleSubmit}>
           {!selectedUser && (
             <div style={{ marginBottom: '1rem' }}>
-              <div style={{ position: 'relative', marginBottom: '0.5rem' }}>
+              <div style={{ position: 'relative', marginBottom: '1rem' }}>
                 <input
                   type="text"
                   placeholder="Search by username (e.g., username)..."
@@ -90,6 +147,7 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ onClose }) => {
                 )}
               </div>
               
+              {/* Show search results if searching */}
               {isSearching && (
                 <div style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>
                   Searching...
@@ -102,30 +160,43 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ onClose }) => {
                   borderRadius: '4px', 
                   maxHeight: '300px', 
                   overflowY: 'auto',
-                  marginBottom: '0.5rem'
+                  marginBottom: '1rem',
+                  padding: '0.5rem'
                 }}>
-                  {searchResults.map((user) => (
-                    <div
-                      key={user.username}
-                      onClick={() => handleSelectUser(user)}
-                      style={{
-                        padding: '0.75rem',
-                        cursor: 'pointer',
-                        borderBottom: '1px solid rgba(0,0,0,0.05)',
-                        transition: 'background-color 0.2s'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                    >
-                      <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>
-                        {user.name} {user.username && <span style={{ color: '#666', fontSize: '0.9em', fontWeight: 'normal' }}>@{user.username}</span>}
-                      </div>
-                      <div style={{ fontSize: '0.85em', color: '#666' }}>{user.email}</div>
-                      {user.company && (
-                        <div style={{ fontSize: '0.8em', color: '#999', marginTop: '0.25rem' }}>{user.company}</div>
-                      )}
+                  {searchResults.map((user) => renderUserItem(user))}
+                </div>
+              )}
+
+              {/* Show top users when not searching */}
+              {!isSearching && searchQuery.length < 2 && (
+                <div>
+                  <div style={{ 
+                    fontSize: '0.9em', 
+                    color: '#666', 
+                    marginBottom: '0.75rem',
+                    fontWeight: '500'
+                  }}>
+                    Top Users
+                  </div>
+                  {loadingTopUsers ? (
+                    <div style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>
+                      Loading top users...
                     </div>
-                  ))}
+                  ) : topUsers.length > 0 ? (
+                    <div style={{ 
+                      border: '1px solid rgba(0,0,0,0.1)', 
+                      borderRadius: '4px', 
+                      maxHeight: '300px', 
+                      overflowY: 'auto',
+                      padding: '0.5rem'
+                    }}>
+                      {topUsers.map((user) => renderUserItem(user))}
+                    </div>
+                  ) : (
+                    <div style={{ padding: '0.5rem', fontSize: '0.9em', color: '#666' }}>
+                      No users available yet.
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -134,21 +205,15 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ onClose }) => {
                   No users found. Try a different search.
                 </div>
               )}
-
-              {!isSearching && searchQuery.length < 2 && (
-                <div style={{ padding: '0.5rem', fontSize: '0.9em', color: '#666' }}>
-                  Type at least 2 characters to search.
-                </div>
-              )}
             </div>
           )}
 
           {selectedUser && (
             <div style={{ marginBottom: '1rem', padding: '1rem', background: 'rgba(0,0,0,0.05)', borderRadius: '4px' }}>
-              <div style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>
-                Selected: {selectedUser.name} {selectedUser.username && <span style={{ color: '#666' }}>@{selectedUser.username}</span>}
+              <div style={{ fontWeight: 'bold', marginBottom: '0.5rem', fontSize: '0.9em', color: '#666' }}>
+                Selected User:
               </div>
-              <div style={{ fontSize: '0.9em', color: '#666', marginBottom: '0.5rem' }}>{selectedUser.email}</div>
+              {renderUserItem(selectedUser, true)}
               <button
                 type="button"
                 onClick={() => {
@@ -161,7 +226,8 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ onClose }) => {
                   color: 'var(--primary-color)', 
                   cursor: 'pointer',
                   fontSize: '0.9em',
-                  textDecoration: 'underline'
+                  textDecoration: 'underline',
+                  marginTop: '0.5rem'
                 }}
               >
                 Change selection

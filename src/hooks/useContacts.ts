@@ -223,6 +223,38 @@ export function useContacts() {
     }
   };
 
+  const getTopUsers = async (limit: number = 5): Promise<ProfileData[]> => {
+    if (!walletAddress) {
+      return [];
+    }
+
+    try {
+      // Get top users by most recent (for now, since we don't have a rating system)
+      // In the future, this could be sorted by rating, number of contacts, etc.
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .neq('wallet_address', walletAddress)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error) throw error;
+
+      return (data || []).map(profile => ({
+        name: profile.name,
+        email: profile.email,
+        company: profile.company,
+        location: profile.location,
+        walletAddress: profile.wallet_address || '',
+        avatarImage: profile.avatar_image,
+        username: profile.username
+      }));
+    } catch (error) {
+      console.error('Error fetching top users:', error);
+      return [];
+    }
+  };
+
   const filteredContacts = searchQuery.trim() === ''
     ? contacts
     : contacts.filter(contact =>
@@ -240,6 +272,7 @@ export function useContacts() {
     addContact,
     removeContact,
     searchUsers,
+    getTopUsers,
     loading
   };
 }
