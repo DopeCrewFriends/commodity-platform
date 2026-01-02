@@ -70,8 +70,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
             {error}
           </div>
         )}
-        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
-          <button type="button" className="btn btn-secondary" onClick={onClose} disabled={connecting}>
+        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-color)' }}>
+          <button type="button" className="btn btn-secondary" onClick={onClose} disabled={connecting} style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
             Cancel
           </button>
         </div>

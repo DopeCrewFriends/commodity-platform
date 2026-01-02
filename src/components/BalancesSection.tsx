@@ -10,7 +10,7 @@ interface BalancesSectionProps {
 
 const BalancesSection: React.FC<BalancesSectionProps> = ({ balances, solPrice, loading, priceLoading }) => {
   const solUSDValue = balances.SOL.amount * solPrice;
-  const totalUSDValue = solUSDValue + balances.USDC.amount;
+  const totalUSDValue = solUSDValue + balances.USDC.amount + balances.USDT.amount;
   
   const totalUSDDisplay = totalUSDValue > 0 
     ? `$${totalUSDValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -21,7 +21,6 @@ const BalancesSection: React.FC<BalancesSectionProps> = ({ balances, solPrice, l
       <div className="balances-header-card" id="balancesHeaderCard">
         <div className="balances-header-content">
           <div className="balances-title-section">
-            <h2>Balance</h2>
             <div className="total-balance">
               <span className="balance-label">Total Balance</span>
               <span className="balance-amount" id="totalBalanceValue">
@@ -39,17 +38,18 @@ const BalancesSection: React.FC<BalancesSectionProps> = ({ balances, solPrice, l
               </div>
               <div className="token-info">
                 <div className="token-name">SOL</div>
-                <div className="token-full-name">Solana</div>
               </div>
               <div className="token-balance">
-                <div className="token-amount" id="solAmount">{balances.SOL.amount.toFixed(4)}</div>
-                <div className="token-value" id="solValue">
+                <div className="token-amount" id="solAmount">
                   {priceLoading ? (
-                    'Loading price...'
-                  ) : solPrice > 0 ? (
-                    `$${(solUSDValue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    'Loading...'
                   ) : (
-                    `${balances.SOL.amount.toFixed(4)} SOL`
+                    <>
+                      <div className="token-amount-value">{balances.SOL.amount.toFixed(4)} SOL</div>
+                      {solPrice > 0 && (
+                        <div className="token-amount-usd">${(solUSDValue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -60,14 +60,25 @@ const BalancesSection: React.FC<BalancesSectionProps> = ({ balances, solPrice, l
               </div>
               <div className="token-info">
                 <div className="token-name">USDC</div>
-                <div className="token-full-name">USD Coin</div>
               </div>
               <div className="token-balance">
                 <div className="token-amount" id="usdcAmount">
-                  {balances.USDC.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <div className="token-amount-value">{balances.USDC.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC</div>
+                  <div className="token-amount-usd">${balances.USDC.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                 </div>
-                <div className="token-value" id="usdcValue">
-                  {balances.USDC.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC
+              </div>
+            </div>
+            <div className="token-item" id="usdtTokenItem">
+              <div className="token-icon">
+                <img src="/images/usdt logo.png" alt="USDT" className="token-logo" />
+              </div>
+              <div className="token-info">
+                <div className="token-name">USDT</div>
+              </div>
+              <div className="token-balance">
+                <div className="token-amount" id="usdtAmount">
+                  <div className="token-amount-value">{balances.USDT.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT</div>
+                  <div className="token-amount-usd">${balances.USDT.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                 </div>
               </div>
             </div>
@@ -79,4 +90,6 @@ const BalancesSection: React.FC<BalancesSectionProps> = ({ balances, solPrice, l
 };
 
 export default BalancesSection;
+
+
 

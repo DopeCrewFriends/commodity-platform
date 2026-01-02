@@ -207,10 +207,10 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
         <form id="editProfileForm" className="edit-profile-form" onSubmit={handleSubmit}>
           <div className="profile-section profile-section-editing" id="editingProfileCard">
             <div className="profile-actions">
-              <button type="button" className="btn btn-secondary" id="cancelEditBtn" onClick={onClose} disabled={saving}>
+              <button type="button" className="btn btn-secondary" id="cancelEditBtn" onClick={onClose} disabled={saving} style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
                 Cancel
               </button>
-              <button type="submit" className="btn btn-primary" disabled={saving}>
+              <button type="submit" className="btn btn-primary" disabled={saving} style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
                 {saving ? 'Saving...' : 'Save Changes'}
               </button>
             </div>

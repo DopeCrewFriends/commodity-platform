@@ -29,7 +29,6 @@ const EscrowsSection: React.FC<EscrowsSectionProps> = ({ escrowsData }) => {
         <div className="escrows-header-card" id="escrowsHeaderCard">
           <div className="escrows-actions">
             <button className="btn btn-primary create-escrow-btn" id="createEscrowBtn" onClick={handleCreateEscrow}>
-              <span>➕</span>
               Create Escrow
             </button>
           </div>

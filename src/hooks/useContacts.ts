@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ProfileData } from '../types';
 import { supabase } from '../utils/supabase';
 import { useAuth } from './useAuth';
@@ -193,7 +193,7 @@ export function useContacts() {
     }
   };
 
-  const searchUsers = async (query: string): Promise<ProfileData[]> => {
+  const searchUsers = useCallback(async (query: string): Promise<ProfileData[]> => {
     if (!walletAddress || !query || query.trim().length < 2) {
       return [];
     }
@@ -221,9 +221,9 @@ export function useContacts() {
       console.error('Error searching users:', error);
       return [];
     }
-  };
+  }, [walletAddress]);
 
-  const getTopUsers = async (limit: number = 5): Promise<ProfileData[]> => {
+  const getTopUsers = useCallback(async (limit: number = 5): Promise<ProfileData[]> => {
     if (!walletAddress) {
       return [];
     }
@@ -253,7 +253,7 @@ export function useContacts() {
       console.error('Error fetching top users:', error);
       return [];
     }
-  };
+  }, [walletAddress]);
 
   const filteredContacts = searchQuery.trim() === ''
     ? contacts

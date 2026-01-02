@@ -7,20 +7,16 @@ interface LandingPageProps {
 const LandingPage: React.FC<LandingPageProps> = ({ onConnectClick }) => {
   return (
     <main className="landing-page" id="landingPage">
-      <div className="landing-background">
-        <div className="floating-shape shape-1"></div>
-        <div className="floating-shape shape-2"></div>
-      </div>
       <div className="landing-container">
         <div className="landing-content">
           <h1 className="landing-title">
-            <span className="gradient-text">FRICTIONLESS GLOBAL TRANSFERS</span>
+            Frictionless Global Transfers
           </h1>
           <p className="landing-subtitle">
             Digital escrow service designed to guarantee trade settlement & minimize the risk of monetary fraud or non-delivery of goods
           </p>
-          <button className="btn btn-primary btn-large landing-cta" onClick={onConnectClick}>
-            <span className="btn-text">CONNECT WALLET TO START</span>
+          <button className="btn btn-primary landing-cta" onClick={onConnectClick}>
+            Connect Wallet to Start
           </button>
         </div>
       </div>

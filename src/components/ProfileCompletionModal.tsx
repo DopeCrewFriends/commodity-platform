@@ -79,7 +79,7 @@ const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({ onCompl
               e.stopPropagation();
               handleComplete();
             }}
-            style={{ cursor: 'pointer', pointerEvents: 'auto' }}
+            style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', cursor: 'pointer', pointerEvents: 'auto' }}
           >
             Complete Profile
           </button>

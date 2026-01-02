@@ -76,3 +76,4 @@ END $$;
 ALTER TABLE contacts ALTER COLUMN user_wallet_address SET NOT NULL;
 ALTER TABLE contacts ALTER COLUMN contact_wallet_address SET NOT NULL;
 
+

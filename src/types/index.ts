@@ -15,6 +15,7 @@ export type Contact = ProfileData;
 export interface TokenBalance {
   SOL: { amount: number };
   USDC: { amount: number };
+  USDT: { amount: number };
 }
 
 export interface Escrow {

@@ -20,7 +20,6 @@ const ContactsSection: React.FC = () => {
                 setShowAddModal(true);
               }}
             >
-              <span>➕</span>
               Add Contact
             </button>
           </div>

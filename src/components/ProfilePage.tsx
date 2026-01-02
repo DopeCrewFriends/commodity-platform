@@ -60,8 +60,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
           flex: 0 1 78% !important;
           margin-bottom: 0 !important;
           min-width: 0 !important;
-          padding: 1rem !important;
-          padding-bottom: 1rem !important;
+          padding: 0.875rem !important;
+          padding-bottom: 0.875rem !important;
         }
         .profile-balances-row .balances-section {
           flex: 0 0 20% !important;
@@ -70,21 +70,21 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
         }
         .profile-balances-row .profile-header {
           gap: 0 !important;
-          margin-bottom: 0 !important;
+          margin-bottom: 0.375rem !important;
           padding-bottom: 0 !important;
         }
         .profile-balances-row .profile-stats {
-          margin-top: 0 !important;
-          padding-top: 0 !important;
+          margin-top: 0.25rem !important;
+          padding-top: 0.25rem !important;
         }
         .profile-balances-row .profile-avatar {
-          width: 70px !important;
-          height: 70px !important;
+          width: 50px !important;
+          height: 50px !important;
         }
         .profile-balances-row .avatar-placeholder {
-          width: 70px !important;
-          height: 70px !important;
-          font-size: 1.75rem !important;
+          width: 50px !important;
+          height: 50px !important;
+          font-size: 1.5rem !important;
         }
         .profile-balances-row .profile-name {
           font-size: 1.5rem !important;
@@ -110,21 +110,10 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
         }
         .profile-balances-row .profile-stats {
           grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)) !important;
-          gap: 0.5rem !important;
-        }
-        .profile-balances-row .profile-stat-item {
-          padding: 0.5rem 0.375rem !important;
-          border-radius: 1.6px !important;
-        }
-        .profile-balances-row .profile-stat-item .stat-value {
-          font-size: 0.75rem !important;
-          margin-bottom: 0.375rem !important;
-        }
-        .profile-balances-row .profile-stat-item .stat-label {
-          font-size: 1rem !important;
+          gap: 0.375rem !important;
         }
         .profile-balances-row .balances-header-card {
-          padding: 1.25rem !important;
+          padding: 1rem !important;
         }
         .escrows-contacts-row {
           display: flex !important;

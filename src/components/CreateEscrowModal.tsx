@@ -197,8 +197,8 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-          <button type="button" className="btn btn-secondary" onClick={onClose}>
+        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-color)' }}>
+          <button type="button" className="btn btn-secondary" onClick={onClose} style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
             Cancel
           </button>
           <button 
@@ -206,7 +206,7 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
             className="btn btn-primary" 
             onClick={handleConfirm}
             disabled={!selectedContact}
-            style={{ opacity: selectedContact ? 1 : 0.5, cursor: selectedContact ? 'pointer' : 'not-allowed' }}
+            style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', opacity: selectedContact ? 1 : 0.5, cursor: selectedContact ? 'pointer' : 'not-allowed' }}
           >
             Continue
           </button>

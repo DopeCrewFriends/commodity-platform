@@ -89,7 +89,20 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ onClose }) => {
         className={isSelected ? '' : 'contact-item'}
         style={isSelected ? {} : {
           cursor: 'pointer',
-          marginBottom: '0.5rem'
+          marginBottom: '0.5rem',
+          padding: '0.5rem',
+          borderRadius: '2.4px',
+          transition: 'background-color 0.2s ease'
+        }}
+        onMouseEnter={(e) => {
+          if (!isSelected) {
+            e.currentTarget.style.backgroundColor = 'var(--bg-light)';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isSelected) {
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }
         }}
       >
         <div className="contact-avatar">{initials}</div>
@@ -97,14 +110,14 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ onClose }) => {
           <div className="contact-name">
             {user.name || 'Unknown'}
             {user.username && (
-              <span style={{ color: '#666', fontSize: '0.9em', marginLeft: '0.5rem' }}>
+              <span style={{ color: 'var(--text-light)', fontSize: '0.875rem', marginLeft: '0.5rem' }}>
                 @{user.username}
               </span>
             )}
           </div>
           <div className="contact-email">{user.email || 'No email'}</div>
           {user.company && (
-            <div style={{ fontSize: '0.85em', color: '#666', marginTop: '0.25rem' }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-light)', marginTop: '0.25rem' }}>
               {user.company}
             </div>
           )}
@@ -126,11 +139,11 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ onClose }) => {
         </div>
         <form onSubmit={handleSubmit}>
           {!selectedUser && (
-            <div style={{ marginBottom: '1rem' }}>
-              <div style={{ position: 'relative', marginBottom: '1rem' }}>
+            <div style={{ marginBottom: '0.75rem' }}>
+              <div style={{ position: 'relative', marginBottom: '0.75rem' }}>
                 <input
                   type="text"
-                  placeholder="Search by username (e.g., username)..."
+                  placeholder="Search by username..."
                   value={searchQuery}
                   onChange={(e) => {
                     const value = e.target.value;
@@ -138,30 +151,33 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ onClose }) => {
                     setSearchQuery(cleanValue);
                     setSelectedUser(null);
                   }}
-                  style={{ width: '100%', padding: '0.75rem', paddingRight: '2.5rem' }}
+                  style={{ 
+                    width: '100%', 
+                    padding: '0.5rem', 
+                    paddingRight: '2rem',
+                    fontSize: '0.875rem',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '2.4px',
+                    background: 'var(--bg-light)',
+                    color: 'var(--text-dark)'
+                  }}
                 />
                 {isSearching && (
-                  <span style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)' }}>
-                    🔍
+                  <span style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.875rem', color: 'var(--text-light)' }}>
+                    Searching...
                   </span>
                 )}
               </div>
               
-              {/* Show search results if searching */}
-              {isSearching && (
-                <div style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>
-                  Searching...
-                </div>
-              )}
-
               {!isSearching && searchResults.length > 0 && (
                 <div style={{ 
-                  border: '1px solid rgba(0,0,0,0.1)', 
-                  borderRadius: '4px', 
+                  border: '1px solid var(--border-color)', 
+                  borderRadius: '2.4px', 
                   maxHeight: '300px', 
                   overflowY: 'auto',
-                  marginBottom: '1rem',
-                  padding: '0.5rem'
+                  marginBottom: '0.75rem',
+                  padding: '0.5rem',
+                  background: 'var(--bg-light)'
                 }}>
                   {searchResults.map((user) => renderUserItem(user))}
                 </div>
@@ -171,29 +187,30 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ onClose }) => {
               {!isSearching && searchQuery.length < 2 && (
                 <div>
                   <div style={{ 
-                    fontSize: '0.9em', 
-                    color: '#666', 
-                    marginBottom: '0.75rem',
+                    fontSize: '0.75rem', 
+                    color: 'var(--text-light)', 
+                    marginBottom: '0.5rem',
                     fontWeight: '500'
                   }}>
                     Top Users
                   </div>
                   {loadingTopUsers ? (
-                    <div style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>
+                    <div style={{ padding: '0.75rem', textAlign: 'center', color: 'var(--text-light)', fontSize: '0.875rem' }}>
                       Loading top users...
                     </div>
                   ) : topUsers.length > 0 ? (
                     <div style={{ 
-                      border: '1px solid rgba(0,0,0,0.1)', 
-                      borderRadius: '4px', 
+                      border: '1px solid var(--border-color)', 
+                      borderRadius: '2.4px', 
                       maxHeight: '300px', 
                       overflowY: 'auto',
-                      padding: '0.5rem'
+                      padding: '0.5rem',
+                      background: 'var(--bg-light)'
                     }}>
                       {topUsers.map((user) => renderUserItem(user))}
                     </div>
                   ) : (
-                    <div style={{ padding: '0.5rem', fontSize: '0.9em', color: '#666' }}>
+                    <div style={{ padding: '0.5rem', fontSize: '0.875rem', color: 'var(--text-light)' }}>
                       No users available yet.
                     </div>
                   )}
@@ -201,7 +218,7 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ onClose }) => {
               )}
 
               {!isSearching && searchQuery && searchResults.length === 0 && searchQuery.length >= 2 && (
-                <div style={{ padding: '0.5rem', fontSize: '0.9em', color: '#666' }}>
+                <div style={{ padding: '0.5rem', fontSize: '0.875rem', color: 'var(--text-light)' }}>
                   No users found. Try a different search.
                 </div>
               )}
@@ -209,8 +226,8 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ onClose }) => {
           )}
 
           {selectedUser && (
-            <div style={{ marginBottom: '1rem', padding: '1rem', background: 'rgba(0,0,0,0.05)', borderRadius: '4px' }}>
-              <div style={{ fontWeight: 'bold', marginBottom: '0.5rem', fontSize: '0.9em', color: '#666' }}>
+            <div style={{ marginBottom: '0.75rem', padding: '0.75rem', background: 'var(--bg-light)', borderRadius: '2.4px', border: '1px solid var(--border-color)' }}>
+              <div style={{ fontWeight: '600', marginBottom: '0.5rem', fontSize: '0.75rem', color: 'var(--text-light)' }}>
                 Selected User:
               </div>
               {renderUserItem(selectedUser, true)}
@@ -225,9 +242,10 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ onClose }) => {
                   border: 'none', 
                   color: 'var(--primary-color)', 
                   cursor: 'pointer',
-                  fontSize: '0.9em',
+                  fontSize: '0.875rem',
                   textDecoration: 'underline',
-                  marginTop: '0.5rem'
+                  marginTop: '0.5rem',
+                  padding: 0
                 }}
               >
                 Change selection
@@ -236,15 +254,15 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ onClose }) => {
           )}
 
           {error && (
-            <div className="wallet-error" style={{ display: 'block', marginBottom: '1rem' }}>
+            <div className="wallet-error" style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.875rem', color: 'var(--error-color, #e74c3c)', padding: '0.5rem', background: 'rgba(231, 76, 60, 0.1)', borderRadius: '2.4px' }}>
               {error}
             </div>
           )}
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-            <button type="button" className="btn btn-secondary" onClick={onClose}>
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-color)' }}>
+            <button type="button" className="btn btn-secondary" onClick={onClose} style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary" disabled={!selectedUser}>
+            <button type="submit" className="btn btn-primary" disabled={!selectedUser} style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
               Add Contact
             </button>
           </div>

@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
-import { fetchSOLBalance, fetchUSDCBalance } from '../utils/solana';
+import { fetchSOLBalance, fetchUSDCBalance, fetchUSDTBalance } from '../utils/solana';
 import { fetchSOLPrice } from '../utils/coingecko';
 import { TokenBalance } from '../types';
 
 export function useBalances(walletAddress: string | null) {
   const [balances, setBalances] = useState<TokenBalance>({
     SOL: { amount: 0 },
-    USDC: { amount: 0 }
+    USDC: { amount: 0 },
+    USDT: { amount: 0 }
   });
   const [solPrice, setSolPrice] = useState<number>(0);
   const [loading, setLoading] = useState(false);
@@ -35,7 +36,7 @@ export function useBalances(walletAddress: string | null) {
 
   useEffect(() => {
     if (!walletAddress) {
-      setBalances({ SOL: { amount: 0 }, USDC: { amount: 0 } });
+      setBalances({ SOL: { amount: 0 }, USDC: { amount: 0 }, USDT: { amount: 0 } });
       return;
     }
 
@@ -44,16 +45,18 @@ export function useBalances(walletAddress: string | null) {
     const loadBalances = async () => {
       setLoading(true);
       try {
-        const [solBalance, usdcBalance] = await Promise.all([
+        const [solBalance, usdcBalance, usdtBalance] = await Promise.all([
           fetchSOLBalance(walletAddress),
-          fetchUSDCBalance(walletAddress)
+          fetchUSDCBalance(walletAddress),
+          fetchUSDTBalance(walletAddress)
         ]);
 
         // Only update state if component is still mounted
         if (isMounted) {
           setBalances({
             SOL: { amount: solBalance },
-            USDC: { amount: usdcBalance }
+            USDC: { amount: usdcBalance },
+            USDT: { amount: usdtBalance }
           });
         }
       } catch (error) {

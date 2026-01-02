@@ -32,7 +32,7 @@ const Navigation: React.FC<NavigationProps> = ({
     <nav className="navbar">
       <div className="container">
         <div className="nav-brand" id="navBrand">
-          <h2>SETL</h2>
+          <h2>SETLL</h2>
         </div>
         <ul className="nav-menu" id="navMenu" style={{ display: 'none' }}>
         </ul>

@@ -42,10 +42,9 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ profileData, statistics, onEd
 
   return (
     <div className="profile-section" id="profileCard">
-      <div className="profile-actions">
-        <button className="btn btn-primary edit-profile-btn" id="editProfileBtn" onClick={onEditClick}>
-          <span>✏️</span>
-          Edit Profile
+      <div className="profile-actions" style={{ marginBottom: '0.375rem' }}>
+        <button className="btn btn-primary edit-profile-btn" id="editProfileBtn" onClick={onEditClick} style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
+          Edit
         </button>
       </div>
       <div className="profile-avatar-display-container">
@@ -115,7 +114,6 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ profileData, statistics, onEd
                 >
                   {walletAddress}
                 </span>
-                <span className="copy-icon" id="profileCopyIcon" onClick={copyWalletAddress} style={{ cursor: 'pointer', marginLeft: '0.5rem' }}>📋</span>
                 {copyFeedback && (
                   <span className="copy-feedback" id="profileCopyFeedback" style={{ display: 'inline', marginLeft: '0.5rem' }}>Copied!</span>
                 )}
