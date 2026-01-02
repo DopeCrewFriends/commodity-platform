@@ -180,7 +180,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
           />
 
           <div className="escrows-contacts-row">
-            <EscrowsSection escrowsData={escrowsData} walletAddress={walletAddress} />
+            <EscrowsSection escrowsData={escrowsData} />
             <ContactsSection />
           </div>
         </div>

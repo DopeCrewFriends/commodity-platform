@@ -5,10 +5,9 @@ import CreateEscrowModal from './CreateEscrowModal';
 
 interface EscrowsSectionProps {
   escrowsData: EscrowsData;
-  walletAddress: string;
 }
 
-const EscrowsSection: React.FC<EscrowsSectionProps> = ({ escrowsData, walletAddress }) => {
+const EscrowsSection: React.FC<EscrowsSectionProps> = ({ escrowsData }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   const handleCreateEscrow = () => {
@@ -97,7 +96,6 @@ const EscrowsSection: React.FC<EscrowsSectionProps> = ({ escrowsData, walletAddr
 
       {showCreateModal && (
         <CreateEscrowModal
-          walletAddress={walletAddress}
           onClose={() => setShowCreateModal(false)}
           onSelectContact={handleSelectContact}
         />

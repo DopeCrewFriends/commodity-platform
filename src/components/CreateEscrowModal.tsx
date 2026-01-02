@@ -4,17 +4,15 @@ import { Contact } from '../types';
 import { getInitials } from '../utils/storage';
 
 interface CreateEscrowModalProps {
-  walletAddress: string;
   onClose: () => void;
   onSelectContact: (contact: Contact) => void;
 }
 
 const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({ 
-  walletAddress, 
   onClose, 
   onSelectContact 
 }) => {
-  const { contacts, searchQuery, setSearchQuery } = useContacts(walletAddress);
+  const { contacts, searchQuery, setSearchQuery } = useContacts();
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
 
   const handleSelectContact = (contact: Contact) => {

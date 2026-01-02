@@ -6,19 +6,17 @@ import { useProfile } from './hooks/useProfile';
 import LandingPage from './components/LandingPage';
 import ProfilePage from './components/ProfilePage';
 import WalletModal from './components/WalletModal';
-import AuthModal from './components/AuthModal';
 import ProfileCompletionModal from './components/ProfileCompletionModal';
 import EditProfileModal from './components/EditProfileModal';
 import Navigation from './components/Navigation';
 
 function App() {
-  const { walletAddress, isConnected, disconnect } = useWallet();
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { walletAddress, isConnected, connect, disconnect } = useWallet();
+  const { signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showProfileCompletion, setShowProfileCompletion] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [openEditProfile, setOpenEditProfile] = useState<(() => void) | null>(null);
   
   // Check profile completion - uses wallet address
   // Skip loading profile until it's complete (will show completion modal first)
@@ -77,8 +75,9 @@ function App() {
     setShowProfileCompletion(true);
   }, []);
 
-  const handleTriggerEdit = useCallback((openEdit: () => void) => {
-    setOpenEditProfile(() => openEdit);
+  const handleTriggerEdit = useCallback((_openEdit: () => void) => {
+    // This callback is used by ProfilePage to trigger edit modal
+    // The edit modal is controlled by showEditModal state
   }, []);
 
   return (
@@ -126,7 +125,7 @@ function App() {
           )}
           
           {/* Only show ProfilePage if profile is complete */}
-          {!showProfileCompletion && isProfileComplete && (
+          {!showProfileCompletion && isProfileComplete() && (
             <ProfilePage 
               walletAddress={profileData?.walletAddress || ''}
               onDisconnect={handleDisconnect}
