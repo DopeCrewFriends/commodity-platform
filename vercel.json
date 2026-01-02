@@ -1,5 +1,4 @@
 {
   "framework": "vite",
-  "devCommand": "vite",
-  "devCommandPort": 3000
+  "devCommand": "vite"
 }
