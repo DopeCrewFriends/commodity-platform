@@ -297,26 +297,12 @@ body.wallet-modal-open > *:not(.wallet-modal):not(.profile-completion-modal):not
     align-items: center;
     justify-content: center;
     background: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%);
-    background-size: 200% 200%;
-    animation: gradientShift 15s ease infinite;
     position: relative;
     overflow: hidden;
 }
 
 [data-theme="dark"] .landing-page {
     background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #4b5563 100%);
-}
-
-@keyframes gradientShift {
-    0% {
-        background-position: 0% 50%;
-    }
-    50% {
-        background-position: 100% 50%;
-    }
-    100% {
-        background-position: 0% 50%;
-    }
 }
 
 .landing-background {
@@ -327,14 +313,15 @@ body.wallet-modal-open > *:not(.wallet-modal):not(.profile-completion-modal):not
     bottom: 0;
     z-index: 1;
     overflow: hidden;
+    /* CSS containment for better performance */
+    contain: layout style paint;
 }
 
 .floating-shape {
     position: absolute;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    animation: float 20s infinite ease-in-out;
+    background: rgba(255, 255, 255, 0.08);
+    /* Animations removed for performance */
 }
 
 .shape-1 {
@@ -342,7 +329,6 @@ body.wallet-modal-open > *:not(.wallet-modal):not(.profile-completion-modal):not
     height: 300px;
     top: -100px;
     left: -100px;
-    animation-delay: 0s;
 }
 
 .shape-2 {
@@ -350,42 +336,6 @@ body.wallet-modal-open > *:not(.wallet-modal):not(.profile-completion-modal):not
     height: 200px;
     bottom: -50px;
     right: -50px;
-    animation-delay: 5s;
-}
-
-.shape-3 {
-    width: 150px;
-    height: 150px;
-    top: 50%;
-    right: 10%;
-    animation-delay: 10s;
-}
-
-.shape-4 {
-    width: 100px;
-    height: 100px;
-    bottom: 20%;
-    left: 15%;
-    animation-delay: 15s;
-}
-
-@keyframes float {
-    0%, 100% {
-        transform: translate(0, 0) rotate(0deg);
-        opacity: 0.3;
-    }
-    25% {
-        transform: translate(30px, -30px) rotate(90deg);
-        opacity: 0.5;
-    }
-    50% {
-        transform: translate(-20px, 20px) rotate(180deg);
-        opacity: 0.4;
-    }
-    75% {
-        transform: translate(20px, 30px) rotate(270deg);
-        opacity: 0.6;
-    }
 }
 
 .landing-page::before {
@@ -414,9 +364,7 @@ body.wallet-modal-open > *:not(.wallet-modal):not(.profile-completion-modal):not
 .landing-content {
     text-align: center;
     color: var(--white);
-    animation: fadeInUp 1s ease-out;
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(20px);
+    background: rgba(255, 255, 255, 0.1);
     border-radius: 6.4px;
     padding: 5rem 4rem;
     border: 1px solid rgba(255, 255, 255, 0.2);
@@ -434,22 +382,10 @@ body.wallet-modal-open > *:not(.wallet-modal):not(.profile-completion-modal):not
 
 .gradient-text {
     background: linear-gradient(135deg, #ffffff 0%, #f0f0f0 50%, #ffffff 100%);
-    background-size: 200% 200%;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
     display: inline-block;
-    animation: shimmer 3s ease-in-out infinite;
-    filter: drop-shadow(0 4px 20px rgba(255, 255, 255, 0.3));
-}
-
-@keyframes shimmer {
-    0%, 100% {
-        background-position: 0% 50%;
-    }
-    50% {
-        background-position: 100% 50%;
-    }
 }
 
 .landing-subtitle {
@@ -470,12 +406,8 @@ body.wallet-modal-open > *:not(.wallet-modal):not(.profile-completion-modal):not
     font-size: 1.75rem;
     font-weight: 700;
     border-radius: 4.8px;
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     position: relative;
-    overflow: hidden;
-    background: rgba(37, 99, 235, 0.25);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    background: rgba(37, 99, 235, 0.3);
     border: 2px solid rgba(37, 99, 235, 0.4);
     display: inline-flex;
     align-items: center;
@@ -495,63 +427,17 @@ body.wallet-modal-open > *:not(.wallet-modal):not(.profile-completion-modal):not
                 inset 0 -1px 0 rgba(59, 130, 246, 0.2);
 }
 
-.landing-cta::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, 
-        transparent, 
-        rgba(255, 255, 255, 0.4), 
-        transparent);
-    transition: left 0.6s ease;
-}
-
-.landing-cta::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
-    transform: translate(-50%, -50%);
-    transition: width 0.6s ease, height 0.6s ease;
-}
-
-.landing-cta:hover::before {
-    left: 100%;
-}
-
-.landing-cta:hover::after {
-    width: 300px;
-    height: 300px;
-}
-
 .landing-cta:hover {
-    transform: translateY(-6px) scale(1.03);
     background: rgba(37, 99, 235, 0.35);
     border-color: rgba(37, 99, 235, 0.5);
-    box-shadow: 0 25px 70px rgba(37, 99, 235, 0.4),
-                inset 0 1px 0 rgba(255, 255, 255, 0.5),
-                inset 0 -1px 0 rgba(37, 99, 235, 0.3),
-                0 0 40px rgba(37, 99, 235, 0.3);
 }
 
 [data-theme="dark"] .landing-cta:hover {
     background: rgba(59, 130, 246, 0.35);
     border-color: rgba(59, 130, 246, 0.5);
-    box-shadow: 0 25px 70px rgba(59, 130, 246, 0.4),
-                inset 0 1px 0 rgba(255, 255, 255, 0.4),
-                inset 0 -1px 0 rgba(59, 130, 246, 0.3),
-                0 0 40px rgba(59, 130, 246, 0.3);
 }
 
 .landing-cta:active {
-    transform: translateY(-3px) scale(1.01);
     box-shadow: 0 15px 50px rgba(37, 99, 235, 0.3),
                 inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
@@ -570,11 +456,6 @@ body.wallet-modal-open > *:not(.wallet-modal):not(.profile-completion-modal):not
     position: relative;
     z-index: 1;
     font-size: 1.75rem;
-    transition: transform 0.3s ease;
-}
-
-.landing-cta:hover .btn-arrow {
-    transform: translateX(5px);
 }
 
 .btn-large {
@@ -925,7 +806,6 @@ body.wallet-modal-open > *:not(.wallet-modal):not(.profile-completion-modal):not
     border-radius: 2.4px;
     padding: 1.5rem;
     margin-bottom: 1rem;
-    animation: slideInDown 0.4s ease;
 }
 
 [data-theme="dark"] .profile-completion-prompt {
@@ -972,16 +852,6 @@ body.wallet-modal-open > *:not(.wallet-modal):not(.profile-completion-modal):not
     white-space: nowrap;
 }
 
-@keyframes slideInDown {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
 
 .profile-header {
     display: flex;
@@ -1552,15 +1422,9 @@ body.wallet-modal-open > *:not(.wallet-modal):not(.profile-completion-modal):not
     color: var(--primary-color);
     font-size: 0.85rem;
     font-weight: 600;
-    animation: fadeInOut 0.3s ease;
     flex-shrink: 0;
 }
 
-@keyframes fadeInOut {
-    0%, 100% {
-        opacity: 0;
-    }
-    50% {
         opacity: 1;
     }
 }
@@ -3772,7 +3636,6 @@ section {
     font-size: 4rem;
     display: block;
     margin-bottom: 1rem;
-    animation: pulse 2s ease-in-out infinite;
 }
 
 .profile-completion-modal-header h2 {
@@ -3892,17 +3755,6 @@ section {
     color: #f87171;
 }
 
-/* Animations */
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
 
 /* Responsive Design */
 @media (max-width: 768px) {

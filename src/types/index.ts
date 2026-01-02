@@ -3,19 +3,14 @@ export interface ProfileData {
   email: string;
   company: string;
   location: string;
-  avatarImage?: string;
-  walletAddress: string;
-  username?: string;
+  avatarImage: string; // Required - all fields must be filled
+  walletAddress: string; // Optional: for backward compatibility
+  username: string; // Required - all fields must be filled
+  userId?: string; // Optional: user_id from auth (for internal use)
 }
 
-export interface Contact {
-  id?: string;
-  name: string;
-  email: string;
-  walletAddress: string;
-  company?: string;
-  location?: string;
-}
+// Contact is now the same as ProfileData - contacts are just profiles with relationships
+export type Contact = ProfileData;
 
 export interface TokenBalance {
   SOL: { amount: number };

@@ -23,7 +23,7 @@ pnpm install
 ### 2. Run Development Server
 
 ```bash
-pnpm dev
+npm run dev
 ```
 
 This will start the Vite dev server on **http://localhost:3000** (or the next available port).
@@ -31,7 +31,7 @@ This will start the Vite dev server on **http://localhost:3000** (or the next av
 ### 3. Build for Production
 
 ```bash
-pnpm build
+npm run build
 ```
 
 This creates a `dist` folder with optimized production files.
@@ -39,52 +39,93 @@ This creates a `dist` folder with optimized production files.
 ### 4. Preview Production Build
 
 ```bash
-pnpm preview
+npm run preview
 ```
 
-## API Configuration
+## Architecture
 
-The frontend connects to an API server for online features (contacts, profiles). 
+- **Frontend**: React/Vite app
+- **API**: Vercel serverless functions in `/api` folder
+- **Database**: Supabase (PostgreSQL) - shared across all users and devices
 
-### Local Development
+## Quick Setup (5 minutes)
 
-1. **Terminal 1** - API Server:
+### 1. Install & Configure
+
+```bash
+# Install dependencies
+npm install
+
+# Create .env file with your Supabase credentials
+# (See Step 2 for where to get these)
+```
+
+### 2. Set Up Supabase (Free)
+
+1. Go to [supabase.com](https://supabase.com) → Sign up → New project
+2. **SQL Editor** → Copy/paste contents of `supabase-setup.sql` → Run
+3. **Settings → API** → Copy:
+   - **Project URL**: `https://xxxxx.supabase.co`
+   - **Publishable key**: `sb_publishable_...` (use the publishable key, not secret)
+
+### 3. Add to `.env` file
+
+Create `.env` in project root:
+```env
+SUPABASE_URL=https://your-project-id.supabase.co
+SUPABASE_ANON_KEY=sb_publishable_your_key_here
+```
+
+### 4. Link Vercel (One-time)
+
+```bash
+vercel link
+```
+Follow prompts (you can create a new project or skip if just testing locally)
+
+### 5. Start Development
+
+```bash
+vercel dev
+```
+
+Open `http://localhost:3000` and connect your wallet!
+
+---
+
+## Detailed Setup
+
+See [SETUP.md](./SETUP.md) for detailed instructions and troubleshooting.
+
+### 3. Production Deployment
+
+1. **Deploy to Vercel**:
    ```bash
-   python api_server.py
+   vercel
    ```
-   Runs on http://localhost:5000
 
-2. **Terminal 2** - Vite Dev Server:
-   ```bash
-   pnpm dev
-   ```
-   Runs on http://localhost:3000
-
-### Production Deployment
-
-For production, you need to:
-
-1. **Host the API server** on a platform that supports persistent databases:
-   - **Recommended**: Railway, Render, Fly.io, or DigitalOcean
-   - These support Flask apps with SQLite or PostgreSQL
-   - Vercel is not recommended for this Flask API (use serverless functions instead)
-
-2. **Set the API URL** in your environment:
-   - Create a `.env` file (or set in Vercel dashboard):
+2. **Set environment variables** in Vercel Dashboard:
+   - Go to your project settings → Environment Variables
+   - Add:
      ```
-     VITE_API_URL=https://your-api-domain.com
+     SUPABASE_URL=your_supabase_project_url
+     SUPABASE_ANON_KEY=your_supabase_anon_key
      ```
-   - Or update `src/utils/api.ts` with your API URL
 
-3. **Deploy the frontend** to Vercel:
+3. **Redeploy** after adding environment variables:
    ```bash
-   pnpm build
+   vercel --prod
    ```
-   Then deploy the `dist` folder to Vercel
+
+The frontend automatically uses the Vercel deployment URL for API calls. No configuration needed!
 
 ## Project Structure
 
 ```
+├── api/                # Vercel serverless functions
+│   ├── contacts/       # Contact management endpoints
+│   ├── profiles/       # Profile management endpoints
+│   └── health.js       # Health check endpoint
 ├── src/
 │   ├── components/     # React components
 │   ├── hooks/          # Custom React hooks
@@ -93,6 +134,7 @@ For production, you need to:
 │   ├── App.tsx         # Main app component
 │   └── main.tsx        # Entry point
 ├── styles.css          # Global styles
+├── supabase-setup.sql  # Database schema
 ├── vite.config.ts      # Vite configuration
 └── package.json        # Dependencies and scripts
 ```
@@ -102,6 +144,8 @@ For production, you need to:
 - **React 18** - UI framework
 - **TypeScript** - Type safety
 - **Vite** - Build tool and dev server
+- **Vercel** - Hosting and serverless functions
+- **Supabase** - PostgreSQL database
 - **@solana/kit** - Solana wallet integration
 - **CoinGecko API** - Cryptocurrency price data
 

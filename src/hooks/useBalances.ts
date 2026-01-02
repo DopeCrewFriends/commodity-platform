@@ -39,6 +39,8 @@ export function useBalances(walletAddress: string | null) {
       return;
     }
 
+    let isMounted = true; // Track if component is still mounted
+
     const loadBalances = async () => {
       setLoading(true);
       try {
@@ -47,18 +49,28 @@ export function useBalances(walletAddress: string | null) {
           fetchUSDCBalance(walletAddress)
         ]);
 
-        setBalances({
-          SOL: { amount: solBalance },
-          USDC: { amount: usdcBalance }
-        });
+        // Only update state if component is still mounted
+        if (isMounted) {
+          setBalances({
+            SOL: { amount: solBalance },
+            USDC: { amount: usdcBalance }
+          });
+        }
       } catch (error) {
         console.error('Error loading balances:', error);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     loadBalances();
+
+    // Cleanup function to prevent state updates after unmount
+    return () => {
+      isMounted = false;
+    };
   }, [walletAddress]);
 
   return { balances, solPrice, loading, priceLoading };

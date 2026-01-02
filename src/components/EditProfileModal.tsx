@@ -148,14 +148,38 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
     setError(null);
     setCheckingUsername(false); // Stop any ongoing checks
     
-    // Don't block submission based on real-time validation errors
-    // The API will validate on save and show the error if needed
+    // Validate all required fields
+    if (!formData.name?.trim()) {
+      setError('Name is required');
+      return;
+    }
+    if (!formData.email?.trim()) {
+      setError('Email is required');
+      return;
+    }
+    if (!formData.company?.trim()) {
+      setError('Company is required');
+      return;
+    }
+    if (!formData.location?.trim()) {
+      setError('Location is required');
+      return;
+    }
+    if (!formData.username?.trim()) {
+      setError('Username is required');
+      return;
+    }
+    if (!avatarImage?.trim()) {
+      setError('Avatar image is required');
+      return;
+    }
+    
     setSaving(true);
     
     try {
       await onSave({
         ...formData,
-        avatarImage: avatarImage || undefined
+        avatarImage: avatarImage
       });
       onClose();
     } catch (err) {
@@ -294,6 +318,10 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
                           setUsernameError(null);
                         }
                       }}
+                      required
+                      minLength={3}
+                      maxLength={20}
+                      pattern="[a-zA-Z0-9]{3,20}"
                     />
                     {checkingUsername && (
                       <span style={{ marginLeft: '0.5rem', fontSize: '0.8rem', color: 'var(--text-light)' }}>

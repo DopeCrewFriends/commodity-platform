@@ -60,7 +60,15 @@ const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({ onCompl
           <p>You must complete your profile before accessing the platform</p>
         </div>
         <div className="profile-completion-modal-body">
-          <p>Please fill in your <strong>name</strong>, <strong>email</strong>, and <strong>username</strong> to continue. These fields are required.</p>
+          <p>Please fill in all profile fields to continue. All fields are required:</p>
+          <ul style={{ textAlign: 'left', marginTop: '1rem' }}>
+            <li><strong>Name</strong></li>
+            <li><strong>Email</strong></li>
+            <li><strong>Company</strong></li>
+            <li><strong>Location</strong></li>
+            <li><strong>Avatar Image</strong></li>
+            <li><strong>Username</strong></li>
+          </ul>
         </div>
         <div className="profile-completion-modal-footer">
           <button 

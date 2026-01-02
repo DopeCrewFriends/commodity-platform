@@ -3,12 +3,8 @@ import { useContacts } from '../hooks/useContacts';
 import { getInitials } from '../utils/storage';
 import AddContactModal from './AddContactModal';
 
-interface ContactsSectionProps {
-  walletAddress: string;
-}
-
-const ContactsSection: React.FC<ContactsSectionProps> = ({ walletAddress }) => {
-  const { contacts, totalContacts, searchQuery, setSearchQuery, removeContact } = useContacts(walletAddress);
+const ContactsSection: React.FC = () => {
+  const { contacts, totalContacts, searchQuery, setSearchQuery, removeContact } = useContacts();
   const [showAddModal, setShowAddModal] = useState(false);
 
   return (
@@ -44,7 +40,7 @@ const ContactsSection: React.FC<ContactsSectionProps> = ({ walletAddress }) => {
                 type="text" 
                 className="contacts-search-input" 
                 id="contactsSearchInput"
-                placeholder="Search contacts by name, email, or wallet address..."
+                placeholder="Search contacts by name, email, or username..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -57,21 +53,35 @@ const ContactsSection: React.FC<ContactsSectionProps> = ({ walletAddress }) => {
                 </div>
               ) : (
                 contacts.map((contact) => {
-                  const initials = getInitials(contact.name, contact.walletAddress);
+                  const initials = getInitials(contact.name || '', contact.walletAddress || contact.username || '');
                   return (
-                    <div key={contact.walletAddress} className="contact-item">
+                    <div key={contact.username || contact.walletAddress} className="contact-item">
                       <div className="contact-avatar">{initials}</div>
                       <div className="contact-info">
-                        <div className="contact-name">{contact.name}</div>
-                        <div className="contact-email">{contact.email}</div>
-                        <div className="contact-wallet">{contact.walletAddress}</div>
+                        <div className="contact-name">
+                          {contact.name || 'Unknown'}
+                          {contact.username && (
+                            <span style={{ color: '#666', fontSize: '0.9em', marginLeft: '0.5rem' }}>
+                              @{contact.username}
+                            </span>
+                          )}
+                        </div>
+                        <div className="contact-email">{contact.email || 'No email'}</div>
+                        {contact.company && (
+                          <div style={{ fontSize: '0.85em', color: '#666', marginTop: '0.25rem' }}>
+                            {contact.company}
+                          </div>
+                        )}
+                        {contact.walletAddress && (
+                          <div className="contact-wallet">{contact.walletAddress}</div>
+                        )}
                       </div>
                       <div className="contact-actions">
                         <button 
                           className="contact-action-btn" 
                           onClick={async (e) => {
                             e.stopPropagation();
-                            await removeContact(contact.walletAddress);
+                            await removeContact(contact);
                           }}
                           title="Remove contact"
                         >
@@ -89,7 +99,6 @@ const ContactsSection: React.FC<ContactsSectionProps> = ({ walletAddress }) => {
 
       {showAddModal && (
         <AddContactModal
-          walletAddress={walletAddress}
           onClose={() => setShowAddModal(false)}
         />
       )}

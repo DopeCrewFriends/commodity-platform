@@ -1,24 +1,28 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useWallet } from './hooks/useWallet';
 import { useTheme } from './hooks/useTheme';
+import { useAuth } from './hooks/useAuth';
 import { useProfile } from './hooks/useProfile';
 import LandingPage from './components/LandingPage';
 import ProfilePage from './components/ProfilePage';
 import WalletModal from './components/WalletModal';
+import AuthModal from './components/AuthModal';
 import ProfileCompletionModal from './components/ProfileCompletionModal';
 import EditProfileModal from './components/EditProfileModal';
 import Navigation from './components/Navigation';
 
 function App() {
-  const { walletAddress, isConnected, connect, disconnect } = useWallet();
+  const { walletAddress, isConnected, disconnect } = useWallet();
+  const { user, loading: authLoading, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showProfileCompletion, setShowProfileCompletion] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [openEditProfile, setOpenEditProfile] = useState<(() => void) | null>(null);
   
-  // Check profile completion when wallet is connected
-  const { profileData, statistics, updateProfile, checkUsernameAvailability, isProfileComplete, loading: profileLoading } = useProfile(walletAddress || '');
+  // Check profile completion - uses wallet address
+  // Skip loading profile until it's complete (will show completion modal first)
+  const { profileData, statistics, updateProfile, checkUsernameAvailability, isProfileComplete, loading: profileLoading } = useProfile(true);
 
   useEffect(() => {
     // Force dark theme on landing page
@@ -27,20 +31,29 @@ function App() {
     }
   }, [isConnected]);
 
-  // Check profile completion when profile loads or updates
+  // Check profile completion when wallet is connected and profile loads
   useEffect(() => {
     if (isConnected && walletAddress && !profileLoading) {
-      if (!isProfileComplete) {
-        setShowProfileCompletion(true);
+      // If profileData exists, check if it's complete
+      if (profileData) {
+        const isComplete = isProfileComplete();
+        if (!isComplete) {
+          console.log('Profile incomplete - showing completion modal');
+          setShowProfileCompletion(true);
+        } else {
+          // Profile is complete, hide completion modal
+          setShowProfileCompletion(false);
+        }
       } else {
-        // Profile is complete, hide completion modal
-        setShowProfileCompletion(false);
+        // No profileData yet, but loading is done - show completion modal
+        console.log('No profile data - showing completion modal');
+        setShowProfileCompletion(true);
       }
     } else if (isConnected && walletAddress && profileLoading) {
       // While loading, don't show completion modal yet
       setShowProfileCompletion(false);
     }
-  }, [isConnected, walletAddress, isProfileComplete, profileLoading]);
+  }, [isConnected, walletAddress, profileLoading, profileData]);
 
   const handleConnectWallet = async () => {
     try {
@@ -54,20 +67,30 @@ function App() {
   };
 
   const handleDisconnect = async () => {
+    await signOut();
     await disconnect();
     setShowProfileCompletion(false);
   };
 
+  // Memoize callbacks to prevent infinite re-renders
+  const handleShowProfileCompletion = useCallback(() => {
+    setShowProfileCompletion(true);
+  }, []);
+
+  const handleTriggerEdit = useCallback((openEdit: () => void) => {
+    setOpenEditProfile(() => openEdit);
+  }, []);
+
   return (
     <>
       <Navigation 
-        walletAddress={walletAddress || ''} 
+        walletAddress={profileData?.walletAddress || walletAddress || ''} 
         isConnected={isConnected}
         onDisconnect={handleDisconnect}
         onConnectClick={() => setShowWalletModal(true)}
         theme={theme}
         toggleTheme={toggleTheme}
-        showThemeToggle={isConnected && !!walletAddress}
+        showThemeToggle={isConnected}
       />
       
       {isConnected && walletAddress ? (
@@ -89,7 +112,7 @@ function App() {
             <EditProfileModal
               profileData={profileData}
               statistics={statistics}
-              walletAddress={walletAddress}
+              walletAddress={profileData?.walletAddress || ''}
               onSave={async (data) => {
                 await updateProfile(data);
                 // After saving, check if profile is now complete
@@ -105,15 +128,10 @@ function App() {
           {/* Only show ProfilePage if profile is complete */}
           {!showProfileCompletion && isProfileComplete && (
             <ProfilePage 
-              walletAddress={walletAddress}
+              walletAddress={profileData?.walletAddress || ''}
               onDisconnect={handleDisconnect}
-              onShowProfileCompletion={() => {
-                // If profile becomes incomplete, show completion modal
-                setShowProfileCompletion(true);
-              }}
-              onTriggerEdit={(openEdit) => {
-                setOpenEditProfile(() => openEdit);
-              }}
+              onShowProfileCompletion={handleShowProfileCompletion}
+              onTriggerEdit={handleTriggerEdit}
             />
           )}
           
@@ -126,7 +144,25 @@ function App() {
               minHeight: '50vh',
               fontSize: '1.2rem'
             }}>
-              Loading...
+              Loading profile...
+            </div>
+          )}
+          
+          {/* Fallback: If loading is done but no profileData and no completion modal, show error */}
+          {!profileLoading && !profileData && !showProfileCompletion && (
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center', 
+              minHeight: '50vh',
+              fontSize: '1.2rem',
+              flexDirection: 'column',
+              gap: '1rem'
+            }}>
+              <p>Unable to load profile. Please refresh the page.</p>
+              <button onClick={() => window.location.reload()} className="btn btn-primary">
+                Refresh Page
+              </button>
             </div>
           )}
         </>

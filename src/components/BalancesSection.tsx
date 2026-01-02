@@ -35,7 +35,7 @@ const BalancesSection: React.FC<BalancesSectionProps> = ({ balances, solPrice, l
           <div className="token-list" id="tokenList">
             <div className="token-item" id="solTokenItem">
               <div className="token-icon">
-                <img src="/sol.png" alt="SOL" className="token-logo" />
+                <img src="/images/sol.png" alt="SOL" className="token-logo" />
               </div>
               <div className="token-info">
                 <div className="token-name">SOL</div>
@@ -56,7 +56,7 @@ const BalancesSection: React.FC<BalancesSectionProps> = ({ balances, solPrice, l
             </div>
             <div className="token-item" id="usdcTokenItem">
               <div className="token-icon">
-                <img src="/usdc.png" alt="USDC" className="token-logo" />
+                <img src="/images/usdc.png" alt="USDC" className="token-logo" />
               </div>
               <div className="token-info">
                 <div className="token-name">USDC</div>

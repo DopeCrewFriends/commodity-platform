@@ -1,70 +1,21 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useContacts } from '../hooks/useContacts';
-import { apiRequest, checkApiHealth } from '../utils/api';
+import { ProfileData } from '../types';
 
 interface AddContactModalProps {
-  walletAddress: string;
   onClose: () => void;
 }
 
-interface SearchResult {
-  walletAddress: string;
-  name: string;
-  email: string;
-  company?: string;
-  location?: string;
-  avatarImage?: string;
-  username?: string;
-}
-
-const AddContactModal: React.FC<AddContactModalProps> = ({ walletAddress, onClose }) => {
-  const { addContact } = useContacts(walletAddress);
+const AddContactModal: React.FC<AddContactModalProps> = ({ onClose }) => {
+  const { addContact, searchUsers } = useContacts();
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [allUsers, setAllUsers] = useState<SearchResult[]>([]);
-  const [selectedUser, setSelectedUser] = useState<SearchResult | null>(null);
+  const [searchResults, setSearchResults] = useState<ProfileData[]>([]);
+  const [selectedUser, setSelectedUser] = useState<ProfileData | null>(null);
   const [isSearching, setIsSearching] = useState(false);
-  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
-  const [isOnline, setIsOnline] = useState(false);
   const [error, setError] = useState('');
-  const [manualMode, setManualMode] = useState(false);
 
+  // Search users when query changes
   useEffect(() => {
-    checkApiHealth().then(setIsOnline);
-  }, []);
-
-  // Load all users when modal opens (only users with usernames)
-  useEffect(() => {
-    const loadAllUsers = async () => {
-      if (!isOnline) return;
-      
-      setIsLoadingUsers(true);
-      try {
-        const data = await apiRequest<{ users: SearchResult[] }>(
-          `/api/profiles/all?exclude=${encodeURIComponent(walletAddress)}`
-        );
-        // Filter to only show users with usernames
-        setAllUsers((data.users || []).filter(user => user.username && user.username.trim()));
-      } catch (err) {
-        console.error('Error loading users:', err);
-        setAllUsers([]);
-      } finally {
-        setIsLoadingUsers(false);
-      }
-    };
-
-    if (isOnline) {
-      loadAllUsers();
-    }
-  }, [isOnline, walletAddress]);
-
-  useEffect(() => {
-    if (!isOnline) {
-      setSearchResults([]);
-      return;
-    }
-
-    // If search query is less than 2 characters, show all users (filtered client-side)
     if (!searchQuery.trim() || searchQuery.length < 2) {
       setSearchResults([]);
       return;
@@ -73,10 +24,8 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ walletAddress, onClos
     const searchTimeout = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const data = await apiRequest<{ users: SearchResult[] }>(
-          `/api/profiles/search?q=${encodeURIComponent(searchQuery)}&exclude=${encodeURIComponent(walletAddress)}`
-        );
-        setSearchResults(data.users || []);
+        const results = await searchUsers(searchQuery);
+        setSearchResults(results);
       } catch (err) {
         console.error('Search error:', err);
         setSearchResults([]);
@@ -86,26 +35,9 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ walletAddress, onClos
     }, 300);
 
     return () => clearTimeout(searchTimeout);
-  }, [searchQuery, walletAddress, isOnline]);
+  }, [searchQuery, searchUsers]);
 
-  // Filter all users client-side by username only
-  const filteredUsers = useMemo(() => {
-    if (!searchQuery.trim() || searchQuery.length < 2) {
-      return allUsers;
-    }
-    
-    const query = searchQuery.toLowerCase();
-    return allUsers.filter(user => 
-      user.username?.toLowerCase().includes(query)
-    );
-  }, [allUsers, searchQuery]);
-
-  // Determine which users to display
-  const displayUsers = searchQuery.trim().length >= 2 && searchResults.length > 0 
-    ? searchResults 
-    : filteredUsers;
-
-  const handleSelectUser = (user: SearchResult) => {
+  const handleSelectUser = (user: ProfileData) => {
     setSelectedUser(user);
     setSearchQuery('');
     setSearchResults([]);
@@ -115,62 +47,15 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ walletAddress, onClos
     e.preventDefault();
     setError('');
 
-    if (selectedUser) {
-      // Using search result
+    if (selectedUser && selectedUser.username) {
       try {
-        const success = await addContact({
-          name: selectedUser.name,
-          email: selectedUser.email,
-          walletAddress: selectedUser.walletAddress,
-          company: selectedUser.company || '',
-          location: selectedUser.location || '',
-          id: Date.now().toString()
-        });
-
-        if (success) {
-          onClose();
-        } else {
-          setError('Contact already exists');
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to add contact. Please try again.');
-      }
-    } else if (manualMode) {
-      // Manual entry mode
-      const formData = {
-        name: (document.getElementById('contact-name') as HTMLInputElement)?.value.trim(),
-        email: (document.getElementById('contact-email') as HTMLInputElement)?.value.trim(),
-        walletAddress: (document.getElementById('contact-wallet') as HTMLInputElement)?.value.trim(),
-        company: (document.getElementById('contact-company') as HTMLInputElement)?.value.trim() || '',
-        location: (document.getElementById('contact-location') as HTMLInputElement)?.value.trim() || ''
-      };
-
-      if (!formData.name || !formData.email || !formData.walletAddress) {
-        setError('Please fill in all required fields');
-        return;
-      }
-
-      if (formData.walletAddress === walletAddress) {
-        setError('Cannot add yourself as a contact');
-        return;
-      }
-
-      try {
-        const success = await addContact({
-          ...formData,
-          id: Date.now().toString()
-        });
-
-        if (success) {
-          onClose();
-        } else {
-          setError('Contact already exists with this email or wallet address');
-        }
+        await addContact(selectedUser.username);
+        onClose();
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to add contact. Please try again.');
       }
     } else {
-      setError('Please search for a user or switch to manual entry');
+      setError('Please search for and select a user');
     }
   };
 
@@ -180,39 +65,38 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ walletAddress, onClos
       <div className="wallet-modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="wallet-modal-header">
           <h2>Add Contact</h2>
-          <p>Search by username (e.g., @username) or add manually</p>
+          <p>Search by username (e.g., username)</p>
         </div>
         <form onSubmit={handleSubmit}>
-          {!selectedUser && !manualMode && (
+          {!selectedUser && (
             <div style={{ marginBottom: '1rem' }}>
               <div style={{ position: 'relative', marginBottom: '0.5rem' }}>
                 <input
                   type="text"
-                  placeholder="Search by username (e.g., @username)..."
+                  placeholder="Search by username (e.g., username)..."
                   value={searchQuery}
                   onChange={(e) => {
                     const value = e.target.value;
-                    // Remove @ if user types it
                     const cleanValue = value.startsWith('@') ? value.slice(1) : value;
                     setSearchQuery(cleanValue);
                     setSelectedUser(null);
                   }}
                   style={{ width: '100%', padding: '0.75rem', paddingRight: '2.5rem' }}
                 />
-                {(isSearching || isLoadingUsers) && (
+                {isSearching && (
                   <span style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)' }}>
                     🔍
                   </span>
                 )}
               </div>
               
-              {isLoadingUsers && (
+              {isSearching && (
                 <div style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>
-                  Loading users...
+                  Searching...
                 </div>
               )}
 
-              {!isLoadingUsers && displayUsers.length > 0 && (
+              {!isSearching && searchResults.length > 0 && (
                 <div style={{ 
                   border: '1px solid rgba(0,0,0,0.1)', 
                   borderRadius: '4px', 
@@ -220,9 +104,9 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ walletAddress, onClos
                   overflowY: 'auto',
                   marginBottom: '0.5rem'
                 }}>
-                  {displayUsers.map((user) => (
+                  {searchResults.map((user) => (
                     <div
-                      key={user.walletAddress}
+                      key={user.username}
                       onClick={() => handleSelectUser(user)}
                       style={{
                         padding: '0.75rem',
@@ -245,63 +129,15 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ walletAddress, onClos
                 </div>
               )}
 
-              {!isLoadingUsers && searchQuery && displayUsers.length === 0 && !isSearching && isOnline && (
+              {!isSearching && searchQuery && searchResults.length === 0 && searchQuery.length >= 2 && (
                 <div style={{ padding: '0.5rem', fontSize: '0.9em', color: '#666' }}>
-                  No users found. Try a different search or{' '}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setManualMode(true);
-                      setSearchQuery('');
-                    }}
-                    style={{ 
-                      background: 'none', 
-                      border: 'none', 
-                      color: 'var(--primary-color)', 
-                      cursor: 'pointer',
-                      textDecoration: 'underline'
-                    }}
-                  >
-                    add manually
-                  </button>
+                  No users found. Try a different search.
                 </div>
               )}
 
-              {!isLoadingUsers && !searchQuery && displayUsers.length === 0 && isOnline && (
+              {!isSearching && searchQuery.length < 2 && (
                 <div style={{ padding: '0.5rem', fontSize: '0.9em', color: '#666' }}>
-                  No users available. You can{' '}
-                  <button
-                    type="button"
-                    onClick={() => setManualMode(true)}
-                    style={{ 
-                      background: 'none', 
-                      border: 'none', 
-                      color: 'var(--primary-color)', 
-                      cursor: 'pointer',
-                      textDecoration: 'underline'
-                    }}
-                  >
-                    add manually
-                  </button>
-                </div>
-              )}
-
-              {!isOnline && (
-                <div style={{ padding: '0.5rem', fontSize: '0.9em', color: '#666', marginBottom: '0.5rem' }}>
-                  API offline. Switch to{' '}
-                  <button
-                    type="button"
-                    onClick={() => setManualMode(true)}
-                    style={{ 
-                      background: 'none', 
-                      border: 'none', 
-                      color: 'var(--primary-color)', 
-                      cursor: 'pointer',
-                      textDecoration: 'underline'
-                    }}
-                  >
-                    manual entry
-                  </button>
+                  Type at least 2 characters to search.
                 </div>
               )}
             </div>
@@ -333,62 +169,6 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ walletAddress, onClos
             </div>
           )}
 
-          {manualMode && (
-            <div style={{ marginBottom: '1rem' }}>
-              <input
-                id="contact-name"
-                type="text"
-                placeholder="Name *"
-                required
-                style={{ width: '100%', padding: '0.75rem', marginBottom: '0.5rem' }}
-              />
-              <input
-                id="contact-email"
-                type="email"
-                placeholder="Email *"
-                required
-                style={{ width: '100%', padding: '0.75rem', marginBottom: '0.5rem' }}
-              />
-              <input
-                id="contact-wallet"
-                type="text"
-                placeholder="Wallet Address *"
-                required
-                style={{ width: '100%', padding: '0.75rem', marginBottom: '0.5rem' }}
-              />
-              <input
-                id="contact-company"
-                type="text"
-                placeholder="Company (optional)"
-                style={{ width: '100%', padding: '0.75rem', marginBottom: '0.5rem' }}
-              />
-              <input
-                id="contact-location"
-                type="text"
-                placeholder="Location (optional)"
-                style={{ width: '100%', padding: '0.75rem', marginBottom: '0.5rem' }}
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  setManualMode(false);
-                  setSearchQuery('');
-                }}
-                style={{ 
-                  background: 'none', 
-                  border: 'none', 
-                  color: 'var(--primary-color)', 
-                  cursor: 'pointer',
-                  fontSize: '0.9em',
-                  textDecoration: 'underline',
-                  marginTop: '0.5rem'
-                }}
-              >
-                ← Back to search
-              </button>
-            </div>
-          )}
-
           {error && (
             <div className="wallet-error" style={{ display: 'block', marginBottom: '1rem' }}>
               {error}
@@ -398,7 +178,7 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ walletAddress, onClos
             <button type="button" className="btn btn-secondary" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary" disabled={!selectedUser && !manualMode}>
+            <button type="submit" className="btn btn-primary" disabled={!selectedUser}>
               Add Contact
             </button>
           </div>

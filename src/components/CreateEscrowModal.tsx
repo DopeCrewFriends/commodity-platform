@@ -31,9 +31,10 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
   const filteredContacts = searchQuery.trim() === ''
     ? contacts
     : contacts.filter(contact =>
-        contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        contact.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        contact.walletAddress.toLowerCase().includes(searchQuery.toLowerCase())
+        contact.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        contact.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        contact.walletAddress.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (contact as any).username?.toLowerCase().includes(searchQuery.toLowerCase())
       );
 
   return (
@@ -78,7 +79,7 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
               </div>
             ) : (
               filteredContacts.map((contact) => {
-                const initials = getInitials(contact.name, contact.walletAddress);
+                const initials = getInitials(contact.name || '', contact.walletAddress);
                 const isSelected = selectedContact?.walletAddress === contact.walletAddress;
 
                 return (
@@ -130,14 +131,19 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
                         marginBottom: '0.25rem',
                         fontSize: '1rem'
                       }}>
-                        {contact.name}
+                        {contact.name || 'Unknown'}
+                        {(contact as any).username && (
+                          <span style={{ color: '#666', fontSize: '0.9em', marginLeft: '0.5rem' }}>
+                            @{(contact as any).username}
+                          </span>
+                        )}
                       </div>
                       <div style={{ 
                         fontSize: '0.85rem', 
                         color: '#666',
                         marginBottom: '0.25rem'
                       }}>
-                        {contact.email}
+                        {contact.email || 'No email'}
                       </div>
                       <div style={{ 
                         fontSize: '0.75rem', 
@@ -180,10 +186,15 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
             marginBottom: '1rem'
           }}>
             <div style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>
-              Selected: {selectedContact.name}
+              Selected: {selectedContact.name || 'Unknown'}
+              {(selectedContact as any).username && (
+                <span style={{ color: '#666', fontSize: '0.9em', marginLeft: '0.5rem' }}>
+                  @{(selectedContact as any).username}
+                </span>
+              )}
             </div>
             <div style={{ fontSize: '0.9em', color: '#666' }}>
-              {selectedContact.email}
+              {selectedContact.email || 'No email'}
             </div>
           </div>
         )}

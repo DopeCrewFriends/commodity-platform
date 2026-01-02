@@ -22,17 +22,19 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
   onShowProfileCompletion,
   onTriggerEdit
 }) => {
+  // Only load balances when profile is complete (ProfilePage only shows when profile is complete)
   const { balances, solPrice, loading, priceLoading } = useBalances(walletAddress);
-  const { profileData, statistics, updateProfile, checkUsernameAvailability, isProfileComplete } = useProfile(walletAddress);
+  const { profileData, statistics, updateProfile, checkUsernameAvailability, isProfileComplete, loading: profileLoading } = useProfile(false);
   const { escrowsData } = useEscrows(walletAddress);
   const { tradeHistory, activeFilter, setActiveFilter } = useTradeHistory(walletAddress);
   const [showEditModal, setShowEditModal] = useState(false);
 
   React.useEffect(() => {
-    if (profileData && !isProfileComplete) {
+    if (profileData && !isProfileComplete()) {
       onShowProfileCompletion();
     }
-  }, [profileData, isProfileComplete, onShowProfileCompletion]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileData]); // Only depend on profileData - onShowProfileCompletion and isProfileComplete are stable
 
   // Expose method to open edit modal
   React.useEffect(() => {
@@ -41,7 +43,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
     }
   }, [onTriggerEdit]);
 
-  if (!profileData) {
+  if (profileLoading || !profileData) {
     return <div>Loading...</div>;
   }
 
@@ -179,7 +181,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
 
           <div className="escrows-contacts-row">
             <EscrowsSection escrowsData={escrowsData} walletAddress={walletAddress} />
-            <ContactsSection walletAddress={walletAddress} />
+            <ContactsSection />
           </div>
         </div>
       </main>

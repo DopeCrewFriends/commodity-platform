@@ -8,7 +8,8 @@
     "dev:vercel": "vercel dev",
     "start": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "setup": "echo 'Setup: 1) Run supabase-setup.sql in Supabase, 2) Add credentials to .env, 3) Run: vercel link, 4) Run: vercel dev'"
   },
   "dependencies": {
     "react": "^18.2.0",
