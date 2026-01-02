@@ -19,8 +19,8 @@ function App() {
   const [showEditModal, setShowEditModal] = useState(false);
   
   // Check profile completion - uses wallet address
-  // Skip loading profile until it's complete (will show completion modal first)
-  const { profileData, statistics, updateProfile, checkUsernameAvailability, isProfileComplete, loading: profileLoading } = useProfile(true);
+  // Load profile from database first to check if it exists and is complete
+  const { profileData, statistics, updateProfile, checkUsernameAvailability, isProfileComplete, loading: profileLoading } = useProfile(false);
 
   useEffect(() => {
     // Force dark theme on landing page
@@ -32,26 +32,41 @@ function App() {
   // Check profile completion when wallet is connected and profile loads
   useEffect(() => {
     if (isConnected && walletAddress && !profileLoading) {
-      // If profileData exists, check if it's complete
-      if (profileData) {
+      // Check if profile exists in database (has any non-empty data)
+      const profileExists = profileData && (
+        profileData.name?.trim() || 
+        profileData.email?.trim() || 
+        profileData.username?.trim() ||
+        profileData.company?.trim() ||
+        profileData.location?.trim() ||
+        profileData.avatarImage?.trim()
+      );
+
+      if (profileExists) {
+        // Profile exists in database - check if it's complete
         const isComplete = isProfileComplete();
-        if (!isComplete) {
+        if (isComplete) {
+          // Profile exists and is complete - hide completion modal
+          console.log('Profile complete - user can access the app');
+          setShowProfileCompletion(false);
+        } else {
+          // Profile exists but is incomplete - show completion modal
           console.log('Profile incomplete - showing completion modal');
           setShowProfileCompletion(true);
-        } else {
-          // Profile is complete, hide completion modal
-          setShowProfileCompletion(false);
         }
       } else {
-        // No profileData yet, but loading is done - show completion modal
-        console.log('No profile data - showing completion modal');
+        // Profile doesn't exist in database (all fields empty) - show completion modal for new user
+        console.log('No profile found in database - showing completion modal for new user');
         setShowProfileCompletion(true);
       }
     } else if (isConnected && walletAddress && profileLoading) {
       // While loading, don't show completion modal yet
       setShowProfileCompletion(false);
+    } else if (!isConnected || !walletAddress) {
+      // Wallet not connected - hide completion modal
+      setShowProfileCompletion(false);
     }
-  }, [isConnected, walletAddress, profileLoading, profileData]);
+  }, [isConnected, walletAddress, profileLoading, profileData, isProfileComplete]);
 
   const handleConnectWallet = async () => {
     try {
