@@ -8,7 +8,7 @@ interface AddContactModalProps {
 }
 
 const AddContactModal: React.FC<AddContactModalProps> = ({ onClose }) => {
-  const { addContact, searchUsers, getTopUsers } = useContacts();
+  const { sendContactRequest, searchUsers, getTopUsers } = useContacts();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<ProfileData[]>([]);
   const [topUsers, setTopUsers] = useState<ProfileData[]>([]);
@@ -69,10 +69,10 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ onClose }) => {
 
     if (selectedUser && selectedUser.username) {
       try {
-        await addContact(selectedUser.username);
+        await sendContactRequest(selectedUser.username);
         onClose();
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to add contact. Please try again.');
+        setError(err instanceof Error ? err.message : 'Failed to send contact request. Please try again.');
       }
     } else {
       setError('Please search for and select a user');
@@ -97,7 +97,7 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ onClose }) => {
         onMouseEnter={(e) => {
           if (!isSelected) {
             e.currentTarget.style.backgroundColor = 'var(--bg-light)';
-          }
+    }
         }}
         onMouseLeave={(e) => {
           if (!isSelected) {
@@ -199,21 +199,21 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ onClose }) => {
                       Loading top users...
                     </div>
                   ) : topUsers.length > 0 ? (
-                    <div style={{ 
+                <div style={{ 
                       border: '1px solid var(--border-color)', 
                       borderRadius: '2.4px', 
-                      maxHeight: '300px', 
-                      overflowY: 'auto',
+                  maxHeight: '300px', 
+                  overflowY: 'auto',
                       padding: '0.5rem',
                       background: 'var(--bg-light)'
                     }}>
                       {topUsers.map((user) => renderUserItem(user))}
-                    </div>
+                      </div>
                   ) : (
                     <div style={{ padding: '0.5rem', fontSize: '0.875rem', color: 'var(--text-light)' }}>
                       No users available yet.
-                    </div>
-                  )}
+                </div>
+              )}
                 </div>
               )}
 
@@ -263,7 +263,7 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ onClose }) => {
               Cancel
             </button>
             <button type="submit" className="btn btn-primary" disabled={!selectedUser} style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
-              Add Contact
+              Send Request
             </button>
           </div>
         </form>

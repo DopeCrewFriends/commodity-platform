@@ -64,9 +64,9 @@ export function useContacts() {
     loadContacts();
   }, [walletAddress]);
 
-  const addContact = async (contactUsername: string): Promise<boolean> => {
+  const sendContactRequest = async (contactUsername: string): Promise<boolean> => {
     if (!walletAddress) return false;
-
+    
     try {
       // Find contact by username
       const { data: contactProfile, error: searchError } = await supabase
@@ -80,68 +80,83 @@ export function useContacts() {
       }
 
       if (contactProfile.wallet_address === walletAddress) {
-        throw new Error('Cannot add yourself as a contact');
+        throw new Error('Cannot send a contact request to yourself');
       }
 
       // Check if contact already exists
-      const { data: existing } = await supabase
+      const { data: existingContact } = await supabase
         .from('contacts')
         .select('id')
         .eq('user_wallet_address', walletAddress)
         .eq('contact_wallet_address', contactProfile.wallet_address)
         .maybeSingle();
 
-      if (existing) {
+      if (existingContact) {
         throw new Error('Contact already exists');
       }
 
-      // Add contact relationship
+      // Check if there's already a pending request (either sent or received)
+      const { data: sentRequest } = await supabase
+        .from('contact_requests')
+        .select('id, status')
+        .eq('from_wallet_address', walletAddress)
+        .eq('to_wallet_address', contactProfile.wallet_address)
+        .maybeSingle();
+
+      const { data: receivedRequest } = await supabase
+        .from('contact_requests')
+        .select('id, status')
+        .eq('from_wallet_address', contactProfile.wallet_address)
+        .eq('to_wallet_address', walletAddress)
+        .maybeSingle();
+
+      const existingRequest = sentRequest || receivedRequest;
+
+      if (existingRequest) {
+        if (existingRequest.status === 'pending') {
+          throw new Error('A contact request already exists');
+        } else if (existingRequest.status === 'accepted') {
+          throw new Error('Contact already exists');
+        }
+      }
+
+      // Send contact request
       const { error: insertError } = await supabase
-        .from('contacts')
+        .from('contact_requests')
         .insert({
-          user_wallet_address: walletAddress,
-          contact_wallet_address: contactProfile.wallet_address
+          from_wallet_address: walletAddress,
+          to_wallet_address: contactProfile.wallet_address,
+          status: 'pending'
         });
 
-      if (insertError) throw insertError;
-
-      // Reload contacts
-      const { data: contactRelations } = await supabase
-        .from('contacts')
-        .select('contact_wallet_address')
-        .eq('user_wallet_address', walletAddress);
-
-      if (contactRelations && contactRelations.length > 0) {
-        const contactWalletAddresses = contactRelations.map(c => c.contact_wallet_address);
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('*')
-          .in('wallet_address', contactWalletAddresses);
-
-        if (profiles) {
-          const mappedContacts: ProfileData[] = profiles.map(profile => ({
-            name: profile.name,
-            email: profile.email,
-            company: profile.company,
-            location: profile.location,
-            walletAddress: profile.wallet_address || '',
-            avatarImage: profile.avatar_image,
-            username: profile.username
-          }));
-          setContacts(mappedContacts);
+      if (insertError) {
+        // Check if it's a unique constraint violation (request already exists)
+        if (insertError.code === '23505') {
+          throw new Error('A contact request already exists');
         }
+        // Check if table doesn't exist (Supabase returns PGRST205 for missing tables)
+        if (insertError.code === '42P01' || insertError.code === 'PGRST205' || 
+            insertError.message?.includes('does not exist') || 
+            insertError.message?.includes('Could not find the table')) {
+          throw new Error('Contact requests table not found. Please run the database migration in Supabase.');
+        }
+        console.error('Insert error details:', insertError);
+        throw new Error(insertError.message || 'Failed to send contact request');
       }
 
       return true;
     } catch (error: any) {
-      console.error('Error adding contact:', error);
+      console.error('Error sending contact request:', error);
       throw error;
     }
   };
 
+  // Keep addContact for backward compatibility, but it now sends a request
+  const addContact = sendContactRequest;
+
   const removeContact = async (contact: ProfileData): Promise<void> => {
     if (!walletAddress) return;
-
+    
     try {
       const contactWalletAddress = contact.walletAddress;
       
@@ -270,6 +285,7 @@ export function useContacts() {
     searchQuery,
     setSearchQuery,
     addContact,
+    sendContactRequest,
     removeContact,
     searchUsers,
     getTopUsers,

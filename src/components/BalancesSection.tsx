@@ -81,7 +81,7 @@ const BalancesSection: React.FC<BalancesSectionProps> = ({ balances, solPrice, l
                   <div className="token-amount-usd">${balances.USDT.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                 </div>
               </div>
-            </div>
+              </div>
           </div>
         </div>
       </div>

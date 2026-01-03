@@ -53,17 +53,17 @@ export function useBalances(walletAddress: string | null) {
 
         // Only update state if component is still mounted
         if (isMounted) {
-          setBalances({
-            SOL: { amount: solBalance },
+        setBalances({
+          SOL: { amount: solBalance },
             USDC: { amount: usdcBalance },
             USDT: { amount: usdtBalance }
-          });
+        });
         }
       } catch (error) {
         console.error('Error loading balances:', error);
       } finally {
         if (isMounted) {
-          setLoading(false);
+        setLoading(false);
         }
       }
     };

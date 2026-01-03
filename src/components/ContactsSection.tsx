@@ -4,7 +4,7 @@ import { getInitials } from '../utils/storage';
 import AddContactModal from './AddContactModal';
 
 const ContactsSection: React.FC = () => {
-  const { contacts, totalContacts, searchQuery, setSearchQuery, removeContact } = useContacts();
+  const { contacts, searchQuery, setSearchQuery, removeContact } = useContacts();
   const [showAddModal, setShowAddModal] = useState(false);
 
   return (
@@ -26,10 +26,6 @@ const ContactsSection: React.FC = () => {
           <div className="contacts-header-content">
             <div className="contacts-title-section">
               <h2>Contacts</h2>
-              <div className="contacts-count">
-                <span className="count-label">Total Contacts</span>
-                <span className="count-number" id="contactsCount">{totalContacts}</span>
-              </div>
             </div>
           </div>
           
@@ -72,7 +68,7 @@ const ContactsSection: React.FC = () => {
                           </div>
                         )}
                         {contact.walletAddress && (
-                          <div className="contact-wallet">{contact.walletAddress}</div>
+                        <div className="contact-wallet">{contact.walletAddress}</div>
                         )}
                       </div>
                       <div className="contact-actions">

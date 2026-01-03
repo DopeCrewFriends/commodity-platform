@@ -59,7 +59,7 @@ body.wallet-modal-open > *:not(.wallet-modal):not(.profile-completion-modal):not
 }
 
 .container {
-    max-width: 1200px;
+    max-width: 1500px;
     margin: 0 auto;
     padding: 0 20px;
 }
@@ -495,15 +495,15 @@ body.wallet-modal-open > *:not(.wallet-modal):not(.profile-completion-modal):not
 }
 
 .portfolio-dashboard .container .profile-balances-row .profile-section {
-    flex: 0 1 78% !important;
+    flex: 0 1 73% !important;
     margin-bottom: 0 !important;
     min-width: 0 !important; /* Allow flex shrinking */
 }
 
 .portfolio-dashboard .container .profile-balances-row .balances-section {
-    flex: 0 0 20% !important;
-    min-width: 240px !important;
-    max-width: 300px !important;
+    flex: 0 0 280px !important;
+    min-width: 280px !important;
+    max-width: 280px !important;
 }
 
 /* Balances Section Styling */
@@ -4253,6 +4253,285 @@ section {
     margin: 0;
 }
 
+/* Notifications Panel */
+.notifications-panel {
+    margin-bottom: 1rem;
+}
+
+.notifications-header-card {
+    background: var(--white);
+    border-radius: 3.2px;
+    padding: 0.875rem;
+    box-shadow: var(--shadow);
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 90px);
+    max-height: calc(100vh - 90px);
+    overflow: hidden;
+}
+
+.notifications-header-card:hover {
+    box-shadow: var(--shadow-lg);
+}
+
+.notifications-header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    flex-shrink: 0;
+}
+
+.notifications-title-section {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.notifications-title-section h2 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-dark);
+    margin: 0;
+}
+
+.notifications-count {
+    background: var(--primary-color);
+    color: var(--white);
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.notifications-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 0.25rem;
+}
+
+.notifications-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.notifications-content::-webkit-scrollbar-track {
+    background: var(--bg-light);
+    border-radius: 3px;
+}
+
+.notifications-content::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+.notifications-content::-webkit-scrollbar-thumb:hover {
+    background: var(--text-light);
+}
+
+.notifications-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.notification-item {
+    background: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-radius: 2.4px;
+    padding: 0.625rem;
+    transition: all 0.3s ease;
+}
+
+.notification-item:hover {
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow);
+}
+
+.notification-header {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin-bottom: 0.5rem;
+}
+
+.notification-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 0.875rem;
+    flex-shrink: 0;
+}
+
+.notification-icon.escrow-icon {
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.notification-icon.contact-icon {
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.notification-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    flex: 1;
+}
+
+.notification-time {
+    font-size: 0.65rem;
+    color: var(--text-light);
+}
+
+.notification-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.notification-escrow-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+.notification-escrow-party {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.notification-avatar-small {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    color: var(--white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.notification-role {
+    font-size: 0.7rem;
+    color: var(--text-light);
+    font-weight: 500;
+}
+
+.notification-escrow-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.notification-commodity {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-dark);
+}
+
+.notification-amount {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.notification-contact-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.notification-contact-details {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.notification-contact-name {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.notification-username {
+    font-size: 0.7rem;
+    color: var(--text-light);
+    font-weight: 400;
+}
+
+.notification-company {
+    font-size: 0.7rem;
+    color: var(--text-light);
+}
+
+.notification-actions {
+    display: flex;
+    gap: 0.375rem;
+    margin-top: 0.375rem;
+}
+
+.notification-action-btn {
+    flex: 1;
+    padding: 0.375rem 0.625rem;
+    font-size: 0.75rem;
+    border-radius: 2.4px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+}
+
+.no-notifications-message {
+    text-align: center;
+    padding: 1.5rem 0.75rem;
+    color: var(--text-light);
+    font-size: 0.85rem;
+    font-style: italic;
+}
+
+.no-notifications-message p {
+    margin: 0;
+}
+
+/* Main Content Layout */
+.main-content-layout {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+}
+
+.main-content-left {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.notifications-sidebar {
+    flex: 0 0 280px;
+    min-width: 280px;
+    max-width: 280px;
+    position: sticky;
+    top: 90px;
+    align-self: flex-start;
+}
+
 /* User Profile Cards (Directory View) */
 .user-profile-card {
     background: rgba(37, 99, 235, 0.05);
@@ -4708,11 +4987,56 @@ section {
     flex: 0 0 auto;
 }
 
+/* Responsive adjustments for notifications panel */
+@media (max-width: 1400px) {
+    .notifications-sidebar {
+        flex: 0 0 260px !important;
+        min-width: 260px !important;
+        max-width: 260px !important;
+    }
+}
+
+@media (max-width: 968px) {
+    .main-content-layout {
+        flex-direction: column !important;
+    }
+    
+    .notifications-sidebar {
+        flex: 1 1 100% !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
+        position: relative !important;
+        top: 0 !important;
+    }
+    
+    .notifications-header-card {
+        height: auto !important;
+        max-height: 500px !important;
+    }
+}
+
 /* Responsive adjustments for contacts and wallet section */
 @media (max-width: 768px) {
     .contacts-card,
     .wallet-balance-card {
         padding: 1rem;
+    }
+    
+    .notifications-header-card {
+        padding: 0.75rem !important;
+        max-height: 400px !important;
+    }
+    
+    .notification-item {
+        padding: 0.75rem !important;
+    }
+    
+    .notification-actions {
+        flex-direction: column;
+    }
+    
+    .notification-action-btn {
+        width: 100%;
     }
 
     .card-header {

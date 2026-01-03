@@ -3,11 +3,13 @@ import { useBalances } from '../hooks/useBalances';
 import { useProfile } from '../hooks/useProfile';
 import { useEscrows } from '../hooks/useEscrows';
 import { useTradeHistory } from '../hooks/useTradeHistory';
+import { useNotifications } from '../hooks/useNotifications';
 import ProfileCard from './ProfileCard';
 import TradeHistorySection from './TradeHistorySection';
 import EscrowsSection from './EscrowsSection';
 import ContactsSection from './ContactsSection';
 import BalancesSection from './BalancesSection';
+import NotificationsPanel from './NotificationsPanel';
 import EditProfileModal from './EditProfileModal';
 
 interface ProfilePageProps {
@@ -25,9 +27,40 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
   // Only load balances when profile is complete (ProfilePage only shows when profile is complete)
   const { balances, solPrice, loading, priceLoading } = useBalances(walletAddress);
   const { profileData, statistics, updateProfile, checkUsernameAvailability, isProfileComplete, loading: profileLoading } = useProfile(false);
-  const { escrowsData } = useEscrows(walletAddress);
+  const { escrowsData, updateEscrows } = useEscrows(walletAddress);
   const { tradeHistory, activeFilter, setActiveFilter } = useTradeHistory(walletAddress);
+  const { contactRequests, outgoingRequests, acceptContactRequest, rejectContactRequest } = useNotifications(walletAddress);
   const [showEditModal, setShowEditModal] = useState(false);
+
+  const handleEscrowAction = (escrowId: string, action: 'confirm' | 'reject') => {
+    const updatedEscrows = escrowsData.items.map(escrow => {
+      if (escrow.id === escrowId) {
+        return {
+          ...escrow,
+          status: action === 'confirm' ? 'confirmed' : 'rejected'
+        };
+      }
+      return escrow;
+    });
+
+    const totalAmount = updatedEscrows
+      .filter(e => e.status === 'confirmed' || e.status === 'pending')
+      .reduce((sum, e) => sum + e.amount, 0);
+
+    updateEscrows({
+      totalAmount,
+      items: updatedEscrows
+    });
+  };
+
+  const handleContactRequestAction = async (requestId: string, action: 'accept' | 'reject') => {
+    if (action === 'accept') {
+      await acceptContactRequest(requestId);
+    } else {
+      await rejectContactRequest(requestId);
+    }
+    // The notifications will reload automatically via the hook
+  };
 
   React.useEffect(() => {
     if (profileData && !isProfileComplete()) {
@@ -57,16 +90,11 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
           align-items: stretch !important;
         }
         .profile-balances-row .profile-section {
-          flex: 0 1 78% !important;
+          flex: 0 1 73% !important;
           margin-bottom: 0 !important;
           min-width: 0 !important;
           padding: 0.875rem !important;
           padding-bottom: 0.875rem !important;
-        }
-        .profile-balances-row .balances-section {
-          flex: 0 0 20% !important;
-          min-width: 240px !important;
-          max-width: 300px !important;
         }
         .profile-balances-row .profile-header {
           gap: 0 !important;
@@ -133,7 +161,46 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
           margin-bottom: 0 !important;
           min-width: 0 !important;
         }
+        .main-content-layout {
+          display: flex !important;
+          gap: 0.75rem !important;
+          align-items: flex-start !important;
+        }
+        .main-content-left {
+          flex: 1 1 auto !important;
+          min-width: 0 !important;
+        }
+        .notifications-sidebar {
+          flex: 0 0 280px !important;
+          min-width: 280px !important;
+          max-width: 280px !important;
+        }
+        .profile-balances-row .balances-section {
+          flex: 0 0 280px !important;
+          min-width: 280px !important;
+          max-width: 280px !important;
+        }
+        @media (max-width: 1400px) {
+          .notifications-sidebar {
+            flex: 0 0 260px !important;
+            min-width: 260px !important;
+            max-width: 260px !important;
+          }
+          .profile-balances-row .balances-section {
+            flex: 0 0 260px !important;
+            min-width: 260px !important;
+            max-width: 260px !important;
+          }
+        }
         @media (max-width: 968px) {
+          .main-content-layout {
+            flex-direction: column !important;
+          }
+          .notifications-sidebar {
+            flex: 1 1 100% !important;
+            min-width: 100% !important;
+            max-width: 100% !important;
+          }
           .profile-balances-row {
             flex-direction: column !important;
           }
@@ -152,25 +219,40 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
       `}</style>
       <main className="portfolio-dashboard" id="profile">
         <div className="container">
-          <div className="profile-balances-row">
-            <ProfileCard
-              profileData={profileData}
-              statistics={statistics}
-              onEditClick={() => setShowEditModal(true)}
-              walletAddress={walletAddress}
-            />
-            <BalancesSection balances={balances} solPrice={solPrice} loading={loading} priceLoading={priceLoading} />
-          </div>
+          <div className="main-content-layout">
+            <div className="main-content-left">
+              <div className="profile-balances-row">
+                <ProfileCard
+                  profileData={profileData}
+                  statistics={statistics}
+                  onEditClick={() => setShowEditModal(true)}
+                  walletAddress={walletAddress}
+                />
+                <BalancesSection balances={balances} solPrice={solPrice} loading={loading} priceLoading={priceLoading} />
+              </div>
 
-          <TradeHistorySection
-            tradeHistory={tradeHistory}
-            activeFilter={activeFilter}
-            onFilterChange={setActiveFilter}
-          />
+              <TradeHistorySection
+                tradeHistory={tradeHistory}
+                activeFilter={activeFilter}
+                onFilterChange={setActiveFilter}
+              />
 
-          <div className="escrows-contacts-row">
-            <EscrowsSection escrowsData={escrowsData} />
-            <ContactsSection />
+              <div className="escrows-contacts-row">
+                <EscrowsSection escrowsData={escrowsData} />
+                <ContactsSection />
+              </div>
+            </div>
+
+            <div className="notifications-sidebar">
+              <NotificationsPanel
+                walletAddress={walletAddress}
+                escrowsData={escrowsData.items}
+                contactRequests={contactRequests}
+                outgoingRequests={outgoingRequests}
+                onEscrowAction={handleEscrowAction}
+                onContactRequestAction={handleContactRequestAction}
+              />
+            </div>
           </div>
         </div>
       </main>
