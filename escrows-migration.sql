@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS escrows (
     status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'rejected', 'cancelled', 'completed')),
     duration_days INTEGER NOT NULL DEFAULT 7,
     additional_notes TEXT,
+    payment_method TEXT CHECK (payment_method IN ('USDT', 'USDC')), -- Payment method (USDT or USDC)
     created_by TEXT NOT NULL, -- Wallet address of user who created the escrow
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

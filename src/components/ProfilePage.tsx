@@ -4,9 +4,7 @@ import { useProfile } from '../hooks/useProfile';
 import { useEscrows } from '../hooks/useEscrows';
 import { useTradeHistory } from '../hooks/useTradeHistory';
 import { useNotifications } from '../hooks/useNotifications';
-import { EscrowsData } from '../types';
 import { supabase } from '../utils/supabase';
-import { loadUserData, saveUserData } from '../utils/storage';
 import ProfileCard from './ProfileCard';
 import TradeHistorySection from './TradeHistorySection';
 import EscrowsSection from './EscrowsSection';
@@ -35,7 +33,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
   const { contactRequests, outgoingRequests, acceptContactRequest, rejectContactRequest } = useNotifications(walletAddress);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  const handleEscrowAction = (escrowId: string, action: 'accept' | 'reject' | 'cancel') => {
+  const handleEscrowAction = async (escrowId: string, action: 'accept' | 'reject' | 'cancel') => {
     const escrow = escrowsData.items.find(e => e.id === escrowId);
     if (!escrow) return;
 
@@ -48,7 +46,29 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
       newStatus = 'cancelled';
     }
 
-    // Update escrow status
+    // Update escrow status in Supabase first (source of truth)
+    try {
+      const { error } = await supabase
+        .from('escrows')
+        .update({ 
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', escrowId);
+
+      if (error) {
+        // If table doesn't exist, fall back to localStorage
+        if (error.code === 'PGRST205' || error.code === '42P01') {
+          console.log('Escrows table not found, using localStorage');
+        } else {
+          console.warn('Error updating escrow in Supabase:', error);
+        }
+      }
+    } catch (error) {
+      console.log('Error updating escrow in Supabase:', error);
+    }
+
+    // Update escrow status locally
     const updatedEscrows = escrowsData.items.map(e => {
       if (e.id === escrowId) {
         return {
@@ -63,54 +83,11 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
       .filter(e => e.status === 'confirmed' || e.status === 'pending')
       .reduce((sum, e) => sum + e.amount, 0);
 
-    // Update current user's escrows
+    // Update current user's escrows (this will also sync to Supabase via updateEscrows)
     updateEscrows({
       totalAmount,
       items: updatedEscrows
     });
-
-    // Update the other user's escrows using the new storage format
-    const otherPartyWallet = escrow.buyer === walletAddress ? escrow.seller : escrow.buyer;
-    const otherUserEscrows = loadUserData<EscrowsData>(otherPartyWallet, 'escrows') || { totalAmount: 0, items: [] };
-    const otherUserUpdatedEscrows = otherUserEscrows.items.map(e => {
-      if (e.id === escrowId) {
-        return {
-          ...e,
-          status: newStatus
-        };
-      }
-      return e;
-    });
-
-    const otherUserTotalAmount = otherUserUpdatedEscrows
-      .filter(e => {
-        const status = e.status.toLowerCase();
-        return status === 'pending' || status === 'confirmed' || status === 'completed';
-      })
-      .reduce((sum, e) => sum + e.amount, 0);
-
-    saveUserData(otherPartyWallet, 'escrows', {
-      totalAmount: otherUserTotalAmount,
-      items: otherUserUpdatedEscrows
-    });
-
-    // Also update in Supabase if table exists
-    try {
-      supabase.from('escrows')
-        .update({ 
-          status: newStatus,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', escrowId)
-        .then(({ error }: { error: any }) => {
-          if (error && error.code !== 'PGRST205' && error.code !== '42P01') {
-            console.warn('Error updating escrow in Supabase:', error);
-          }
-        });
-    } catch (error) {
-      // Supabase table might not exist yet
-      console.log('Using localStorage for escrow updates');
-    }
   };
 
   const handleContactRequestAction = async (requestId: string, action: 'accept' | 'reject') => {

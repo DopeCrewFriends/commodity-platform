@@ -88,6 +88,7 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
           status: 'pending',
           duration_days: parseInt(duration),
           additional_notes: additionalNotes || null,
+          payment_method: paymentMethod,
           created_by: walletAddress
         });
 
