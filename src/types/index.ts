@@ -26,6 +26,8 @@ export interface Escrow {
   amount: number;
   status: string;
   startDate: string;
+  created_by?: string; // Wallet address of user who created the escrow
+  paymentMethod?: 'USDT' | 'USDC'; // Payment method specified by buyer
 }
 
 export interface EscrowsData {

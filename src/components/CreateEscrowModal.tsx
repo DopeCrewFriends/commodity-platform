@@ -1,29 +1,143 @@
 import React, { useState } from 'react';
 import { useContacts } from '../hooks/useContacts';
-import { Contact } from '../types';
-import { getInitials } from '../utils/storage';
+import { Contact, EscrowsData } from '../types';
+import { getInitials, loadUserData, saveUserData } from '../utils/storage';
+import { supabase } from '../utils/supabase';
 
 interface CreateEscrowModalProps {
   onClose: () => void;
   onSelectContact: (contact: Contact) => void;
+  walletAddress: string;
+  currentEscrowsData: EscrowsData;
+  updateEscrows: (data: EscrowsData) => void;
 }
 
 const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({ 
   onClose, 
-  onSelectContact 
+  onSelectContact,
+  walletAddress,
+  currentEscrowsData,
+  updateEscrows
 }) => {
   const { contacts, searchQuery, setSearchQuery } = useContacts();
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [currentStep, setCurrentStep] = useState<'select' | 'details' | 'review'>('select');
+  
+  // Escrow form state
+  const [role, setRole] = useState<'buyer' | 'seller' | ''>('');
+  const [escrowBasis, setEscrowBasis] = useState('');
+  const [escrowAmount, setEscrowAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'USDT' | 'USDC'>('USDC');
+  const [duration, setDuration] = useState('7');
+  const [additionalNotes, setAdditionalNotes] = useState('');
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   const handleSelectContact = (contact: Contact) => {
     setSelectedContact(contact);
   };
 
-  const handleConfirm = () => {
+  const handleContinue = () => {
     if (selectedContact) {
-      onSelectContact(selectedContact);
-      onClose();
+      setCurrentStep('details');
     }
+  };
+
+  const handleBack = () => {
+    setCurrentStep('select');
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const files = Array.from(e.target.files);
+      // Filter by size (10MB max per file)
+      const validFiles = files.filter(file => file.size <= 10 * 1024 * 1024);
+      setSelectedFiles([...selectedFiles, ...validFiles]);
+    }
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setSelectedFiles(selectedFiles.filter((_, i) => i !== index));
+  };
+
+  const handleCreateEscrow = () => {
+    if (selectedContact && role && escrowBasis && escrowAmount) {
+      setCurrentStep('review');
+    }
+  };
+
+  const handleConfirmEscrow = async () => {
+    if (!selectedContact || !role || !escrowBasis || !escrowAmount) return;
+
+    // Determine buyer and seller based on role
+    const buyer = role === 'buyer' ? walletAddress : selectedContact.walletAddress;
+    const seller = role === 'seller' ? walletAddress : selectedContact.walletAddress;
+
+    // Create escrow ID
+    const escrowId = `escrow-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    try {
+      // Create escrow in Supabase (if table exists)
+      const { error: supabaseError } = await supabase
+        .from('escrows')
+        .insert({
+          id: escrowId,
+          buyer_wallet_address: buyer,
+          seller_wallet_address: seller,
+          commodity: escrowBasis,
+          amount: parseFloat(escrowAmount),
+          status: 'pending',
+          duration_days: parseInt(duration),
+          additional_notes: additionalNotes || null,
+          created_by: walletAddress
+        });
+
+      // If table doesn't exist, continue with localStorage fallback
+      if (supabaseError && supabaseError.code !== 'PGRST205' && supabaseError.code !== '42P01') {
+        console.warn('Error creating escrow in Supabase:', supabaseError);
+      }
+    } catch (error) {
+      // Supabase table might not exist yet, continue with localStorage
+      console.log('Using localStorage for escrow storage');
+    }
+
+    // Create new escrow object for local storage
+    const newEscrow = {
+      id: escrowId,
+      buyer,
+      seller,
+      commodity: escrowBasis,
+      amount: parseFloat(escrowAmount),
+      status: 'pending',
+      startDate: new Date().toISOString(), // Use ISO string for consistent parsing
+      created_by: walletAddress, // Track who created the escrow
+      paymentMethod: paymentMethod // Set for both buyer and seller
+    };
+
+    // Use current escrows data from state instead of localStorage
+    // Add new escrow
+    const updatedEscrows: EscrowsData = {
+      totalAmount: currentEscrowsData.totalAmount + newEscrow.amount,
+      items: [...currentEscrowsData.items, newEscrow]
+    };
+
+    // Update escrows for current user
+    updateEscrows(updatedEscrows);
+
+    // Also create escrow for the other user using the new storage format
+    // When they load their page, they'll see it in notifications and active escrows
+    const otherUserEscrows = loadUserData<EscrowsData>(selectedContact.walletAddress, 'escrows') || { totalAmount: 0, items: [] };
+    const otherUserUpdatedEscrows: EscrowsData = {
+      totalAmount: otherUserEscrows.totalAmount + newEscrow.amount,
+      items: [...otherUserEscrows.items, newEscrow]
+    };
+    saveUserData(selectedContact.walletAddress, 'escrows', otherUserUpdatedEscrows);
+
+    onSelectContact(selectedContact);
+    onClose();
+  };
+
+  const handleBackToDetails = () => {
+    setCurrentStep('details');
   };
 
   const filteredContacts = searchQuery.trim() === ''
@@ -38,12 +152,18 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
   return (
     <div className="wallet-modal active" onClick={onClose}>
       <div className="wallet-modal-overlay"></div>
-      <div className="wallet-modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
-        <div className="wallet-modal-header">
-          <h2>Create Escrow</h2>
-          <p>Choose a contact to create an escrow with</p>
+      <div className="wallet-modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px', padding: '0.875rem' }}>
+        <div className="wallet-modal-header" style={{ marginBottom: '0.75rem' }}>
+          <h2 style={{ fontSize: '1rem', marginBottom: '0.25rem' }}>Create Escrow</h2>
+          <p style={{ fontSize: '0.8rem' }}>
+            {currentStep === 'select' ? 'Choose a contact to create an escrow with' : 
+             currentStep === 'details' ? 'Fill in the escrow details' : 
+             'Review and confirm escrow details'}
+          </p>
         </div>
 
+        {currentStep === 'select' ? (
+          <>
         <div style={{ marginBottom: '1rem' }}>
           <div className="contacts-search-container" style={{ marginBottom: '1rem' }}>
             <input
@@ -204,13 +324,479 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
           <button 
             type="button" 
             className="btn btn-primary" 
-            onClick={handleConfirm}
+            onClick={handleContinue}
             disabled={!selectedContact}
             style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', opacity: selectedContact ? 1 : 0.5, cursor: selectedContact ? 'pointer' : 'not-allowed' }}
           >
             Continue
           </button>
         </div>
+          </>
+        ) : currentStep === 'details' ? (
+          <div className="escrow-details-form">
+            {/* Selected Contact Display */}
+            {selectedContact && (
+              <div style={{ 
+                padding: '0.5rem 0.75rem', 
+                backgroundColor: 'rgba(37, 99, 235, 0.05)', 
+                borderRadius: '2.4px',
+                marginBottom: '0.75rem',
+                border: '1px solid var(--border-color)'
+              }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-light)', marginBottom: '0.25rem' }}>
+                  Creating escrow with:
+                </div>
+                <div style={{ fontWeight: '600', fontSize: '0.8rem', color: 'var(--text-dark)' }}>
+                  {selectedContact.name || 'Unknown'}
+                  {(selectedContact as any).username && (
+                    <span style={{ color: 'var(--text-light)', fontSize: '0.75em', marginLeft: '0.5rem' }}>
+                      @{(selectedContact as any).username}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* I am - Role Selection */}
+            <div className="form-group" style={{ marginBottom: '0.875rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.375rem', fontWeight: '600', fontSize: '0.8rem' }}>
+                I am
+              </label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setRole('buyer')}
+                  style={{
+                    flex: 1,
+                    padding: '0.5rem 0.75rem',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '2.4px',
+                    background: role === 'buyer' ? 'var(--primary-color)' : 'var(--bg-light)',
+                    color: role === 'buyer' ? 'var(--white)' : 'var(--text-dark)',
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    fontWeight: '600',
+                    opacity: role === 'buyer' ? 1 : 0.6
+                  }}
+                >
+                  Buyer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole('seller')}
+                  style={{
+                    flex: 1,
+                    padding: '0.5rem 0.75rem',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '2.4px',
+                    background: role === 'seller' ? 'var(--primary-color)' : 'var(--bg-light)',
+                    color: role === 'seller' ? 'var(--white)' : 'var(--text-dark)',
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    fontWeight: '600',
+                    opacity: role === 'seller' ? 1 : 0.6
+                  }}
+                >
+                  Seller
+                </button>
+              </div>
+            </div>
+
+            {/* Escrow Basis */}
+            <div className="form-group" style={{ marginBottom: '0.875rem' }}>
+              <label htmlFor="escrowBasis" style={{ display: 'block', marginBottom: '0.375rem', fontWeight: '600', fontSize: '0.8rem' }}>
+                Escrow Basis
+              </label>
+              <input
+                type="text"
+                id="escrowBasis"
+                value={escrowBasis}
+                onChange={(e) => setEscrowBasis(e.target.value)}
+                placeholder="e.g., 100,000MT of EN590"
+                style={{
+                  width: '100%',
+                  padding: '0.5rem 0.75rem',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '2.4px',
+                  background: 'var(--bg-light)',
+                  color: 'var(--text-dark)',
+                  fontSize: '0.8rem'
+                }}
+              />
+              <p style={{ marginTop: '0.25rem', fontSize: '0.7rem', color: 'var(--text-light)' }}>
+                Specify the commodity, quantity, and specifications
+              </p>
+            </div>
+
+            {/* Escrow Amount */}
+            <div className="form-group" style={{ marginBottom: '0.875rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.375rem' }}>
+                <label htmlFor="escrowAmount" style={{ fontWeight: '600', fontSize: '0.8rem', marginBottom: 0 }}>
+                  Escrow Amount
+                </label>
+                <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('USDT')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      padding: '0.25rem 0.5rem',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '2.4px',
+                      background: paymentMethod === 'USDT' ? '#26a17b' : 'var(--bg-light)',
+                      color: paymentMethod === 'USDT' ? 'white' : 'var(--text-dark)',
+                      fontSize: '0.7rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      opacity: paymentMethod === 'USDT' ? 1 : 0.5
+                    }}
+                  >
+                    <img 
+                      src="/images/usdt logo.png" 
+                      alt="USDT"
+                      style={{ width: '14px', height: '14px' }}
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                    <span>USDT</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('USDC')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      padding: '0.25rem 0.5rem',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '2.4px',
+                      background: paymentMethod === 'USDC' ? '#3e73c4' : 'var(--bg-light)',
+                      color: paymentMethod === 'USDC' ? 'white' : 'var(--text-dark)',
+                      fontSize: '0.7rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      opacity: paymentMethod === 'USDC' ? 1 : 0.5
+                    }}
+                  >
+                    <img 
+                      src="/images/usdc.png" 
+                      alt="USDC"
+                      style={{ width: '14px', height: '14px' }}
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                    <span>USDC</span>
+                  </button>
+                </div>
+              </div>
+              <input
+                type="number"
+                id="escrowAmount"
+                value={escrowAmount}
+                onChange={(e) => setEscrowAmount(e.target.value)}
+                placeholder="0.00"
+                min="0"
+                step="0.01"
+                style={{
+                  width: '100%',
+                  padding: '0.5rem 0.75rem',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '2.4px',
+                  background: 'var(--bg-light)',
+                  color: 'var(--text-dark)',
+                  fontSize: '0.8rem'
+                }}
+              />
+              <p style={{ marginTop: '0.25rem', fontSize: '0.7rem', color: 'var(--text-light)' }}>
+                Amount to be held in escrow
+              </p>
+            </div>
+
+            {/* Duration */}
+            <div className="form-group" style={{ marginBottom: '0.875rem' }}>
+              <label htmlFor="duration" style={{ display: 'block', marginBottom: '0.375rem', fontWeight: '600', fontSize: '0.8rem' }}>
+                Duration (days)
+              </label>
+              <input
+                type="number"
+                id="duration"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                min="1"
+                style={{
+                  width: '100%',
+                  padding: '0.5rem 0.75rem',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '2.4px',
+                  background: 'var(--bg-light)',
+                  color: 'var(--text-dark)',
+                  fontSize: '0.8rem'
+                }}
+              />
+            </div>
+
+            {/* Supporting Documents */}
+            <div className="form-group" style={{ marginBottom: '0.875rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.375rem', fontWeight: '600', fontSize: '0.8rem' }}>
+                Supporting Documents (Optional)
+              </label>
+              <div
+                style={{
+                  border: '2px dashed var(--border-color)',
+                  borderRadius: '2.4px',
+                  padding: '1rem',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  background: 'var(--bg-light)'
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.currentTarget.style.borderColor = 'var(--primary-color)';
+                }}
+                onDragLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--border-color)';
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.currentTarget.style.borderColor = 'var(--border-color)';
+                  const files = Array.from(e.dataTransfer.files);
+                  const validFiles = files.filter(file => file.size <= 10 * 1024 * 1024);
+                  setSelectedFiles([...selectedFiles, ...validFiles]);
+                }}
+              >
+                <input
+                  type="file"
+                  id="fileUpload"
+                  multiple
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                  onChange={handleFileChange}
+                  style={{ display: 'none' }}
+                />
+                <label htmlFor="fileUpload" style={{ cursor: 'pointer', display: 'block' }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ margin: '0 auto 0.375rem' }}>
+                    <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                  <p style={{ margin: '0.25rem 0', fontSize: '0.8rem', color: 'var(--text-dark)' }}>
+                    Click to upload documents or drag and drop
+                  </p>
+                  <p style={{ margin: '0.125rem 0', fontSize: '0.7rem', color: 'var(--text-light)' }}>
+                    PDF, DOC, DOCX, JPG, PNG (Max 10MB per file)
+                  </p>
+                </label>
+              </div>
+              {selectedFiles.length > 0 && (
+                <div style={{ marginTop: '0.5rem' }}>
+                  {selectedFiles.map((file, index) => (
+                    <div key={index} style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '0.375rem 0.5rem',
+                      background: 'var(--bg-light)',
+                      borderRadius: '2.4px',
+                      marginBottom: '0.375rem'
+                    }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-dark)' }}>{file.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFile(index)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--text-light)',
+                          cursor: 'pointer',
+                          fontSize: '1.1rem',
+                          padding: '0 0.375rem'
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Additional Notes */}
+            <div className="form-group" style={{ marginBottom: '0.875rem' }}>
+              <label htmlFor="additionalNotes" style={{ display: 'block', marginBottom: '0.375rem', fontWeight: '600', fontSize: '0.8rem' }}>
+                Additional Notes (Optional)
+              </label>
+              <textarea
+                id="additionalNotes"
+                value={additionalNotes}
+                onChange={(e) => setAdditionalNotes(e.target.value)}
+                placeholder="Additional details about the escrow..."
+                rows={3}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem 0.75rem',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '2.4px',
+                  background: 'var(--bg-light)',
+                  color: 'var(--text-dark)',
+                  fontSize: '0.8rem',
+                  resize: 'vertical',
+                  fontFamily: 'inherit'
+                }}
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-color)' }}>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                onClick={handleBack}
+                style={{ padding: '0.5rem 0.875rem', fontSize: '0.8rem' }}
+              >
+                Back
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-primary" 
+                onClick={handleCreateEscrow}
+                disabled={!role || !escrowBasis || !escrowAmount}
+                style={{ 
+                  padding: '0.5rem 0.875rem', 
+                  fontSize: '0.8rem', 
+                  opacity: (role && escrowBasis && escrowAmount) ? 1 : 0.5, 
+                  cursor: (role && escrowBasis && escrowAmount) ? 'pointer' : 'not-allowed' 
+                }}
+              >
+                Review
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="escrow-review-form">
+            <div style={{ marginBottom: '0.875rem', padding: '0.75rem', background: 'var(--bg-light)', borderRadius: '2.4px', border: '1px solid var(--border-color)' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-light)', marginBottom: '0.5rem', fontWeight: '600' }}>
+                Review Escrow Details
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)' }}>
+                Please review all information before confirming
+              </div>
+            </div>
+
+            {/* Review Section */}
+            <div style={{ marginBottom: '0.875rem' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-light)', marginBottom: '0.5rem', fontWeight: '600' }}>
+                Counterparty
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem 0.75rem', background: 'var(--bg-light)', borderRadius: '2.4px' }}>
+                {selectedContact?.name || 'Unknown'}
+                {selectedContact && (selectedContact as any).username && (
+                  <span style={{ color: 'var(--text-light)', marginLeft: '0.5rem' }}>
+                    @{(selectedContact as any).username}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '0.875rem' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-light)', marginBottom: '0.5rem', fontWeight: '600' }}>
+                Your Role
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem 0.75rem', background: 'var(--bg-light)', borderRadius: '2.4px', textTransform: 'capitalize' }}>
+                {role}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '0.875rem' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-light)', marginBottom: '0.5rem', fontWeight: '600' }}>
+                Escrow Basis
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem 0.75rem', background: 'var(--bg-light)', borderRadius: '2.4px' }}>
+                {escrowBasis}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '0.875rem' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-light)', marginBottom: '0.5rem', fontWeight: '600' }}>
+                Escrow Amount
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem 0.75rem', background: 'var(--bg-light)', borderRadius: '2.4px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                ${parseFloat(escrowAmount || '0').toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {paymentMethod && (
+                  <img 
+                    src={paymentMethod === 'USDC' ? '/images/usdc.png' : '/images/usdt logo.png'} 
+                    alt={paymentMethod}
+                    style={{ width: '16px', height: '16px' }}
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '0.875rem' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-light)', marginBottom: '0.5rem', fontWeight: '600' }}>
+                Duration
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem 0.75rem', background: 'var(--bg-light)', borderRadius: '2.4px' }}>
+                {duration} days
+              </div>
+            </div>
+
+            {additionalNotes && (
+              <div style={{ marginBottom: '0.875rem' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-light)', marginBottom: '0.5rem', fontWeight: '600' }}>
+                  Additional Notes
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem 0.75rem', background: 'var(--bg-light)', borderRadius: '2.4px', whiteSpace: 'pre-wrap' }}>
+                  {additionalNotes}
+                </div>
+              </div>
+            )}
+
+            {selectedFiles.length > 0 && (
+              <div style={{ marginBottom: '0.875rem' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-light)', marginBottom: '0.5rem', fontWeight: '600' }}>
+                  Supporting Documents ({selectedFiles.length})
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem 0.75rem', background: 'var(--bg-light)', borderRadius: '2.4px' }}>
+                  {selectedFiles.map((file, index) => (
+                    <div key={index} style={{ marginBottom: '0.25rem' }}>
+                      {file.name}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-color)' }}>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                onClick={handleBackToDetails}
+                style={{ padding: '0.5rem 0.875rem', fontSize: '0.8rem' }}
+              >
+                Back
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-primary" 
+                onClick={handleConfirmEscrow}
+                style={{ 
+                  padding: '0.5rem 0.875rem', 
+                  fontSize: '0.8rem'
+                }}
+              >
+                Confirm & Create Escrow
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,16 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useWallet } from './hooks/useWallet';
 import { useTheme } from './hooks/useTheme';
 import { useAuth } from './hooks/useAuth';
 import { useProfile } from './hooks/useProfile';
 import LandingPage from './components/LandingPage';
 import ProfilePage from './components/ProfilePage';
+import AccountPage from './components/AccountPage';
+import EscrowsPage from './components/EscrowsPage';
 import WalletModal from './components/WalletModal';
 import ProfileCompletionModal from './components/ProfileCompletionModal';
 import EditProfileModal from './components/EditProfileModal';
 import Navigation from './components/Navigation';
 
-function App() {
+function AppContent() {
   const { walletAddress, isConnected, connect, disconnect } = useWallet();
   const { signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -95,6 +98,9 @@ function App() {
     // The edit modal is controlled by showEditModal state
   }, []);
 
+  // Determine if user can access protected routes
+  const canAccess = isConnected && walletAddress && !showProfileCompletion && isProfileComplete();
+
   return (
     <>
       <Navigation 
@@ -139,16 +145,6 @@ function App() {
             />
           )}
           
-          {/* Only show ProfilePage if profile is complete */}
-          {!showProfileCompletion && isProfileComplete() && (
-            <ProfilePage 
-              walletAddress={profileData?.walletAddress || ''}
-              onDisconnect={handleDisconnect}
-              onShowProfileCompletion={handleShowProfileCompletion}
-              onTriggerEdit={handleTriggerEdit}
-            />
-          )}
-          
           {/* Show loading state while checking profile */}
           {profileLoading && !showProfileCompletion && (
             <div style={{ 
@@ -179,9 +175,48 @@ function App() {
               </button>
             </div>
           )}
+
+          {/* Routes - only accessible if profile is complete */}
+          {canAccess && (
+            <Routes>
+              <Route 
+                path="/dashboard" 
+                element={
+                  <ProfilePage 
+                    walletAddress={profileData?.walletAddress || ''}
+                    onDisconnect={handleDisconnect}
+                    onShowProfileCompletion={handleShowProfileCompletion}
+                    onTriggerEdit={handleTriggerEdit}
+                  />
+                } 
+              />
+              <Route 
+                path="/escrows" 
+                element={
+                  <EscrowsPage 
+                    walletAddress={profileData?.walletAddress || ''}
+                  />
+                } 
+              />
+              <Route 
+                path="/account" 
+                element={
+                  <AccountPage 
+                    walletAddress={profileData?.walletAddress || ''}
+                    onDisconnect={handleDisconnect}
+                  />
+                } 
+              />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          )}
         </>
       ) : (
-        <LandingPage onConnectClick={() => setShowWalletModal(true)} />
+        <Routes>
+          <Route path="/" element={<LandingPage onConnectClick={() => setShowWalletModal(true)} />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       )}
       
       {showWalletModal && (
@@ -191,6 +226,14 @@ function App() {
         />
       )}
     </>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <AppContent />
+    </Router>
   );
 }
 

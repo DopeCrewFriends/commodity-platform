@@ -4,6 +4,9 @@ import { useProfile } from '../hooks/useProfile';
 import { useEscrows } from '../hooks/useEscrows';
 import { useTradeHistory } from '../hooks/useTradeHistory';
 import { useNotifications } from '../hooks/useNotifications';
+import { EscrowsData } from '../types';
+import { supabase } from '../utils/supabase';
+import { loadUserData, saveUserData } from '../utils/storage';
 import ProfileCard from './ProfileCard';
 import TradeHistorySection from './TradeHistorySection';
 import EscrowsSection from './EscrowsSection';
@@ -32,25 +35,82 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
   const { contactRequests, outgoingRequests, acceptContactRequest, rejectContactRequest } = useNotifications(walletAddress);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  const handleEscrowAction = (escrowId: string, action: 'confirm' | 'reject') => {
-    const updatedEscrows = escrowsData.items.map(escrow => {
-      if (escrow.id === escrowId) {
+  const handleEscrowAction = (escrowId: string, action: 'accept' | 'reject' | 'cancel') => {
+    const escrow = escrowsData.items.find(e => e.id === escrowId);
+    if (!escrow) return;
+
+    let newStatus: string;
+    if (action === 'accept') {
+      newStatus = 'confirmed';
+    } else if (action === 'reject') {
+      newStatus = 'rejected';
+    } else { // cancel
+      newStatus = 'cancelled';
+    }
+
+    // Update escrow status
+    const updatedEscrows = escrowsData.items.map(e => {
+      if (e.id === escrowId) {
         return {
-          ...escrow,
-          status: action === 'confirm' ? 'confirmed' : 'rejected'
+          ...e,
+          status: newStatus
         };
       }
-      return escrow;
+      return e;
     });
 
     const totalAmount = updatedEscrows
       .filter(e => e.status === 'confirmed' || e.status === 'pending')
       .reduce((sum, e) => sum + e.amount, 0);
 
+    // Update current user's escrows
     updateEscrows({
       totalAmount,
       items: updatedEscrows
     });
+
+    // Update the other user's escrows using the new storage format
+    const otherPartyWallet = escrow.buyer === walletAddress ? escrow.seller : escrow.buyer;
+    const otherUserEscrows = loadUserData<EscrowsData>(otherPartyWallet, 'escrows') || { totalAmount: 0, items: [] };
+    const otherUserUpdatedEscrows = otherUserEscrows.items.map(e => {
+      if (e.id === escrowId) {
+        return {
+          ...e,
+          status: newStatus
+        };
+      }
+      return e;
+    });
+
+    const otherUserTotalAmount = otherUserUpdatedEscrows
+      .filter(e => {
+        const status = e.status.toLowerCase();
+        return status === 'pending' || status === 'confirmed' || status === 'completed';
+      })
+      .reduce((sum, e) => sum + e.amount, 0);
+
+    saveUserData(otherPartyWallet, 'escrows', {
+      totalAmount: otherUserTotalAmount,
+      items: otherUserUpdatedEscrows
+    });
+
+    // Also update in Supabase if table exists
+    try {
+      supabase.from('escrows')
+        .update({ 
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', escrowId)
+        .then(({ error }: { error: any }) => {
+          if (error && error.code !== 'PGRST205' && error.code !== '42P01') {
+            console.warn('Error updating escrow in Supabase:', error);
+          }
+        });
+    } catch (error) {
+      // Supabase table might not exist yet
+      console.log('Using localStorage for escrow updates');
+    }
   };
 
   const handleContactRequestAction = async (requestId: string, action: 'accept' | 'reject') => {
@@ -90,7 +150,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
           align-items: stretch !important;
         }
         .profile-balances-row .profile-section {
-          flex: 0 1 73% !important;
+          flex: 0 1 75% !important;
           margin-bottom: 0 !important;
           min-width: 0 !important;
           padding: 0.875rem !important;
@@ -238,7 +298,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
               />
 
               <div className="escrows-contacts-row">
-                <EscrowsSection escrowsData={escrowsData} />
+                <EscrowsSection escrowsData={escrowsData} updateEscrows={updateEscrows} />
                 <ContactsSection />
               </div>
             </div>

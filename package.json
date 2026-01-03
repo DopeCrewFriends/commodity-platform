@@ -12,10 +12,11 @@
     "setup": "echo 'Setup: 1) Run supabase-setup.sql in Supabase, 2) Add credentials to .env, 3) Run: vercel link, 4) Run: vercel dev'"
   },
   "dependencies": {
+    "@solana/kit": "^5.1.0",
+    "@supabase/supabase-js": "^2.39.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "@solana/kit": "^5.1.0",
-    "@supabase/supabase-js": "^2.39.0"
+    "react-router-dom": "^7.11.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",

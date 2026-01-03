@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { formatWalletAddress } from '../utils/storage';
 
 interface NavigationProps {
@@ -21,11 +22,36 @@ const Navigation: React.FC<NavigationProps> = ({
   showThemeToggle = true
 }) => {
   const formattedAddress = formatWalletAddress(walletAddress);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDropdownOpen]);
 
   const handleDisconnect = () => {
+    setIsDropdownOpen(false);
     if (confirm('Are you sure you want to disconnect your wallet?')) {
       onDisconnect();
     }
+  };
+
+  const toggleDropdown = () => {
+    setIsDropdownOpen(!isDropdownOpen);
   };
 
   return (
@@ -34,8 +60,34 @@ const Navigation: React.FC<NavigationProps> = ({
         <div className="nav-brand" id="navBrand">
           <h2>SETLL</h2>
         </div>
-        <ul className="nav-menu" id="navMenu" style={{ display: 'none' }}>
-        </ul>
+        {isConnected && (
+          <ul className="nav-menu" id="navMenu">
+            <li>
+              <Link 
+                to="/dashboard" 
+                className={`nav-link ${location.pathname === '/dashboard' ? 'nav-active' : ''}`}
+              >
+                Dashboard
+              </Link>
+            </li>
+            <li>
+              <Link 
+                to="/escrows" 
+                className={`nav-link ${location.pathname === '/escrows' ? 'nav-active' : ''}`}
+              >
+                Escrows
+              </Link>
+            </li>
+            <li>
+              <Link 
+                to="/account" 
+                className={`nav-link ${location.pathname === '/account' ? 'nav-active' : ''}`}
+              >
+                Account
+              </Link>
+            </li>
+          </ul>
+        )}
         <div className="nav-right">
           {showThemeToggle && (
             <button 
@@ -63,8 +115,44 @@ const Navigation: React.FC<NavigationProps> = ({
             </button>
           )}
           {isConnected && walletAddress ? (
-            <div className="wallet-address connected" id="walletAddress" onClick={handleDisconnect} style={{ cursor: 'pointer', display: 'flex' }}>
-              <span className="address-text">{formattedAddress}</span>
+            <div className="wallet-dropdown-container" ref={dropdownRef}>
+              <div 
+                className="wallet-address connected" 
+                id="walletAddress" 
+                onClick={toggleDropdown} 
+                style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                <span className="address-text">{formattedAddress}</span>
+                <svg 
+                  width="12" 
+                  height="12" 
+                  viewBox="0 0 12 12" 
+                  fill="none" 
+                  xmlns="http://www.w3.org/2000/svg"
+                  style={{ 
+                    transform: isDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                    transition: 'transform 0.2s ease'
+                  }}
+                >
+                  <path 
+                    d="M3 4.5L6 7.5L9 4.5" 
+                    stroke="currentColor" 
+                    strokeWidth="1.5" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+              {isDropdownOpen && (
+                <div className="wallet-dropdown-menu">
+                  <button 
+                    className="wallet-dropdown-item" 
+                    onClick={handleDisconnect}
+                  >
+                    Disconnect
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <button 

@@ -92,3 +92,34 @@ export function clearUserDataByWallet(walletAddress: string): void {
   }
 }
 
+/**
+ * Clear all escrows from localStorage for all users
+ */
+export function clearAllEscrows(): void {
+  try {
+    const keys = Object.keys(localStorage);
+    
+    // Find all escrow-related keys
+    const escrowKeys = keys.filter(key => 
+      (key.startsWith('user_') && key.endsWith('_escrows')) || 
+      key.startsWith('escrows_')
+    );
+    
+    // Clear or reset all escrow data
+    escrowKeys.forEach(key => {
+      if (key.startsWith('user_') && key.endsWith('_escrows')) {
+        // Reset to empty escrows data
+        localStorage.setItem(key, JSON.stringify({ totalAmount: 0, items: [] }));
+      } else if (key.startsWith('escrows_')) {
+        // Remove old format keys
+        localStorage.removeItem(key);
+      }
+    });
+    
+    console.log(`Cleared ${escrowKeys.length} escrow entries from localStorage`);
+  } catch (error) {
+    console.error('Error clearing escrows:', error);
+    throw error;
+  }
+}
+

@@ -14,7 +14,29 @@ export function useEscrows(walletAddress: string | null) {
       return;
     }
 
-    const saved = loadUserData<EscrowsData>(walletAddress, 'escrows');
+    // Try loading from new format first
+    let saved = loadUserData<EscrowsData>(walletAddress, 'escrows');
+    
+    // If not found, try old format and migrate
+    if (!saved || saved.items.length === 0) {
+      const oldFormatKey = `escrows_${walletAddress}`;
+      const oldFormatData = localStorage.getItem(oldFormatKey);
+      if (oldFormatData) {
+        try {
+          const oldData = JSON.parse(oldFormatData) as EscrowsData;
+          if (oldData && oldData.items && oldData.items.length > 0) {
+            // Migrate to new format
+            saved = oldData;
+            saveUserData(walletAddress, 'escrows', oldData);
+            // Remove old format
+            localStorage.removeItem(oldFormatKey);
+          }
+        } catch (e) {
+          console.error('Error migrating escrows data:', e);
+        }
+      }
+    }
+    
     if (saved) {
       setEscrowsData(saved);
     } else {
