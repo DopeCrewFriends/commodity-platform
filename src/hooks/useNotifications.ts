@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Escrow, ProfileData } from '../types';
+import { ProfileData } from '../types';
 import { supabase } from '../utils/supabase';
 
 export interface ContactRequest {
@@ -45,16 +45,18 @@ export function useNotifications(walletAddress: string | null) {
 
         if (incomingError || outgoingError) {
           const error = incomingError || outgoingError;
-          // Check if table doesn't exist (Supabase returns PGRST205 for missing tables)
-          if (error.code === '42P01' || error.code === 'PGRST205' || 
-              error.message?.includes('does not exist') || 
-              error.message?.includes('Could not find the table')) {
-            console.warn('Contact requests table not found. Please run the database migration in Supabase.');
-            setContactRequests([]);
-            setOutgoingRequests([]);
-            return;
+          if (error) {
+            // Check if table doesn't exist (Supabase returns PGRST205 for missing tables)
+            if (error.code === '42P01' || error.code === 'PGRST205' || 
+                error.message?.includes('does not exist') || 
+                error.message?.includes('Could not find the table')) {
+              console.warn('Contact requests table not found. Please run the database migration in Supabase.');
+              setContactRequests([]);
+              setOutgoingRequests([]);
+              return;
+            }
+            throw error;
           }
-          throw error;
         }
 
         // Process incoming requests
