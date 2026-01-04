@@ -9,8 +9,12 @@ export function normalizeEscrowStatus(status: string): EscrowStatus {
   
   // Map old statuses to new standardized ones
   switch (normalized) {
+    case 'waiting':
+      return 'waiting';
     case 'pending':
       return 'waiting';
+    case 'ongoing':
+      return 'ongoing';
     case 'confirmed':
       return 'ongoing';
     case 'completed':
@@ -22,6 +26,7 @@ export function normalizeEscrowStatus(status: string): EscrowStatus {
       return 'cancelled';
     default:
       // Default to waiting for unknown statuses
+      console.warn(`Unknown escrow status: "${status}", defaulting to "waiting"`);
       return 'waiting';
   }
 }

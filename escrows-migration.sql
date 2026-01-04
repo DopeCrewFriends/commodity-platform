@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS escrows (
     seller_wallet_address TEXT NOT NULL,
     commodity TEXT NOT NULL,
     amount DECIMAL(18, 2) NOT NULL,
-    status TEXT NOT NULL DEFAULT 'waiting' CHECK (status IN ('waiting', 'ongoing', 'completed', 'cancelled')),
+    status TEXT NOT NULL DEFAULT 'waiting',
     duration_days INTEGER NOT NULL DEFAULT 7,
     additional_notes TEXT,
     payment_method TEXT CHECK (payment_method IN ('USDT', 'USDC')), -- Payment method (USDT or USDC)
@@ -19,6 +19,13 @@ CREATE TABLE IF NOT EXISTS escrows (
     FOREIGN KEY (seller_wallet_address) REFERENCES profiles(wallet_address) ON DELETE CASCADE,
     FOREIGN KEY (created_by) REFERENCES profiles(wallet_address) ON DELETE CASCADE
 );
+
+-- Drop old constraint if it exists (in case table was created with old constraint)
+ALTER TABLE escrows DROP CONSTRAINT IF EXISTS escrows_status_check;
+
+-- Add the correct CHECK constraint for status
+ALTER TABLE escrows ADD CONSTRAINT escrows_status_check 
+    CHECK (status IN ('waiting', 'ongoing', 'completed', 'cancelled'));
 
 -- Create indexes for escrows
 CREATE INDEX IF NOT EXISTS idx_buyer_wallet ON escrows(buyer_wallet_address);

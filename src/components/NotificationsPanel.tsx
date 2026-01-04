@@ -72,12 +72,21 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
   // Show all escrows that are waiting (for actions) or recently ongoing/completed (for status updates)
   // Use useMemo to ensure it recalculates when escrowsData changes
   const pendingEscrows = React.useMemo(() => {
-    if (!escrowsData || escrowsData.length === 0) return [];
-    return escrowsData.filter(
+    if (!escrowsData || escrowsData.length === 0) {
+      console.log('📭 NotificationsPanel: No escrows data provided');
+      return [];
+    }
+    
+    console.log(`📭 NotificationsPanel: Processing ${escrowsData.length} escrows for wallet ${walletAddress}`);
+    console.log('📭 Raw escrows:', escrowsData.map(e => ({ id: e.id, status: e.status, buyer: e.buyer, seller: e.seller })));
+    
+    const filtered = escrowsData.filter(
       escrow => {
         const status = escrow.status;
         const isWaiting = status === 'waiting';
         const isRecent = status === 'ongoing' || status === 'completed' || status === 'cancelled';
+        const isUserInvolved = escrow.buyer === walletAddress || escrow.seller === walletAddress;
+        
         // Parse date - handle both ISO string and locale date string formats
         let escrowDate: Date;
         try {
@@ -91,10 +100,20 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
         }
         // Show waiting escrows and recently ongoing/completed ones (within last 7 days)
         const isRecentDate = isRecent && escrowDate.getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000;
-        return (isWaiting || isRecentDate) && 
-               (escrow.buyer === walletAddress || escrow.seller === walletAddress);
+        const shouldShow = (isWaiting || isRecentDate) && isUserInvolved;
+        
+        if (isWaiting) {
+          console.log(`📭 Escrow ${escrow.id} with status 'waiting' - ${shouldShow ? 'SHOWING' : 'HIDDEN'} (user involved: ${isUserInvolved})`);
+        }
+        
+        return shouldShow;
       }
     );
+    
+    console.log(`📭 NotificationsPanel: Filtered to ${filtered.length} pending escrows`);
+    console.log('📭 Pending escrows:', filtered.map(e => ({ id: e.id, status: e.status })));
+    
+    return filtered;
   }, [escrowsData, walletAddress]);
 
   const notifications: Notification[] = React.useMemo(() => {
@@ -252,18 +271,14 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
           </div>
           {showActions && (
             isSentByMe ? (
-              <div className="notification-actions">
-                <div className="notification-status" style={{ 
-                  fontSize: '0.7rem', 
-                  color: 'var(--text-light)', 
-                  fontStyle: 'italic',
-                  marginBottom: '0.5rem'
-                }}>
-                  Waiting for response...
+              <div className="notification-actions-waiting">
+                <div className={`escrow-status-full waiting`} style={{ marginTop: '0.5rem', flex: 1 }}>
+                  {getEscrowStatusDisplay(escrow.status)}
                 </div>
                 <button
-                  className="btn btn-secondary notification-action-btn"
+                  className="btn btn-secondary notification-action-btn notification-cancel-btn"
                   onClick={() => onEscrowAction(escrow.id, 'cancel')}
+                  style={{ marginTop: '0.5rem' }}
                 >
                   Cancel
                 </button>

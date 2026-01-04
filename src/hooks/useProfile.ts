@@ -23,14 +23,20 @@ export function useProfile(skipLoadUntilComplete: boolean = false) {
     if (!walletAddress) {
       if (mounted) {
         setProfileData(null);
-        setLoading(false);
+        setLoading(true); // Set loading to true when wallet disconnects
         setHasInitialized(false);
       }
       return;
     }
 
+    // Don't reload if we've already initialized for this wallet (unless skipLoadUntilComplete is false)
     if (skipLoadUntilComplete && hasInitialized) {
       return;
+    }
+    
+    // Reset hasInitialized when walletAddress changes to ensure profile reloads
+    if (mounted && hasInitialized) {
+      setHasInitialized(false);
     }
 
     const loadProfile = async () => {
@@ -133,7 +139,7 @@ export function useProfile(skipLoadUntilComplete: boolean = false) {
     return () => {
       mounted = false;
     };
-  }, [walletAddress, skipLoadUntilComplete, hasInitialized]);
+  }, [walletAddress, skipLoadUntilComplete]); // Removed hasInitialized from deps to prevent circular dependency
 
   const updateProfile = async (data: Partial<ProfileData>) => {
     if (!walletAddress) throw new Error('Wallet not connected');
@@ -223,15 +229,29 @@ export function useProfile(skipLoadUntilComplete: boolean = false) {
   };
 
   const isProfileComplete = (): boolean => {
-    if (!profileData) return false;
-    return !!(
-      profileData.name?.trim() &&
-      profileData.email?.trim() &&
-      profileData.company?.trim() &&
-      profileData.location?.trim() &&
-      profileData.avatarImage?.trim() &&
-      profileData.username?.trim()
+    if (!profileData) {
+      return false;
+    }
+    
+    const checks = {
+      name: !!profileData.name?.trim(),
+      email: !!profileData.email?.trim(),
+      company: !!profileData.company?.trim(),
+      location: !!profileData.location?.trim(),
+      avatarImage: !!profileData.avatarImage?.trim(),
+      username: !!profileData.username?.trim()
+    };
+    
+    const isComplete = !!(
+      checks.name &&
+      checks.email &&
+      checks.company &&
+      checks.location &&
+      checks.avatarImage &&
+      checks.username
     );
+    
+    return isComplete;
   };
 
   return {

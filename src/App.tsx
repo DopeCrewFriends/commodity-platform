@@ -35,40 +35,39 @@ function AppContent() {
 
   // Check profile completion when wallet is connected and profile loads
   useEffect(() => {
-    if (isConnected && walletAddress && !profileLoading) {
-      // Check if profile exists in database (has any non-empty data)
-      const profileExists = profileData && (
-        profileData.name?.trim() || 
-        profileData.email?.trim() || 
-        profileData.username?.trim() ||
-        profileData.company?.trim() ||
-        profileData.location?.trim() ||
-        profileData.avatarImage?.trim()
-      );
+    // Only check when we have all required data
+    if (!isConnected || !walletAddress) {
+      setShowProfileCompletion(false);
+      return;
+    }
 
-      if (profileExists) {
-        // Profile exists in database - check if it's complete
-        const isComplete = isProfileComplete();
-        if (isComplete) {
-          // Profile exists and is complete - hide completion modal
-          console.log('Profile complete - user can access the app');
-          setShowProfileCompletion(false);
-        } else {
-          // Profile exists but is incomplete - show completion modal
-          console.log('Profile incomplete - showing completion modal');
-        setShowProfileCompletion(true);
-        }
-      } else {
-        // Profile doesn't exist in database (all fields empty) - show completion modal for new user
-        console.log('No profile found in database - showing completion modal for new user');
-        setShowProfileCompletion(true);
-      }
-    } else if (isConnected && walletAddress && profileLoading) {
-      // While loading, don't show completion modal yet
+    // Wait for profile to finish loading - this is critical
+    if (profileLoading) {
       setShowProfileCompletion(false);
-    } else if (!isConnected || !walletAddress) {
-      // Wallet not connected - hide completion modal
+      return;
+    }
+
+    // After loading completes, check if we have profile data
+    // If profileData is null after loading completes, it means:
+    // 1. Profile doesn't exist in database (new user) - show modal
+    // 2. OR there was an error loading - but we set empty profile, so still show modal
+    if (!profileData) {
+      console.log('⚠️ No profile data found after loading - showing completion modal');
+      setShowProfileCompletion(true);
+      return;
+    }
+
+    // Now check if profile is complete (we know profileData exists)
+    const isComplete = isProfileComplete();
+    
+    if (isComplete) {
+      // Profile is complete - hide completion modal and allow access
+      console.log('✅ Profile complete - user can access the app');
       setShowProfileCompletion(false);
+    } else {
+      // Profile exists but is incomplete - show completion modal
+      console.log('⚠️ Profile incomplete - showing completion modal');
+      setShowProfileCompletion(true);
     }
   }, [isConnected, walletAddress, profileLoading, profileData, isProfileComplete]);
 
@@ -138,9 +137,15 @@ function AppContent() {
                 await updateProfile(data);
                 // After saving, check if profile is now complete
                 // The useEffect will handle showing/hiding the completion modal
+                // Close the edit modal after saving
+                setShowEditModal(false);
               }}
               onClose={() => {
                 setShowEditModal(false);
+                // If profile is still incomplete after closing, show completion modal again
+                if (!isProfileComplete()) {
+                  setShowProfileCompletion(true);
+                }
               }}
               checkUsernameAvailability={checkUsernameAvailability}
             />

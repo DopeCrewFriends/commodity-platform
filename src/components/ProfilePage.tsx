@@ -184,8 +184,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
         .escrows-contacts-row {
           display: flex !important;
           gap: 0.75rem !important;
-          margin-bottom: 1rem !important;
-          align-items: stretch !important;
+          margin-bottom: 0 !important;
+          align-items: flex-start !important;
           width: 100% !important;
           max-width: 100% !important;
         }
@@ -195,6 +195,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
           min-width: 0 !important;
           display: flex !important;
           flex-direction: column !important;
+          height: calc(100vh - 457px) !important;
+          max-height: calc(100vh - 457px) !important;
         }
         .escrows-contacts-row .contacts-section {
           flex: 1 1 50% !important;
@@ -202,14 +204,16 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
           min-width: 0 !important;
           display: flex !important;
           flex-direction: column !important;
+          height: calc(100vh - 457px) !important;
+          max-height: calc(100vh - 457px) !important;
         }
         .escrows-contacts-row .escrows-header-card,
         .escrows-contacts-row .contacts-header-card {
-          flex: 1 !important;
+          flex: 0 0 auto !important;
           display: flex !important;
           flex-direction: column !important;
-          height: calc(100vh - 90px) !important;
-          max-height: calc(100vh - 90px) !important;
+          height: calc(100vh - 457px) !important;
+          max-height: calc(100vh - 457px) !important;
           overflow: hidden !important;
         }
         .main-content-layout {
@@ -222,9 +226,9 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
           min-width: 0 !important;
         }
         .notifications-sidebar {
-          flex: 0 0 280px !important;
-          min-width: 280px !important;
-          max-width: 280px !important;
+          flex: 0 0 360px !important;
+          min-width: 360px !important;
+          max-width: 360px !important;
         }
         .profile-balances-row .balances-section {
           flex: 0 0 280px !important;
@@ -233,9 +237,9 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
         }
         @media (max-width: 1400px) {
           .notifications-sidebar {
-            flex: 0 0 260px !important;
-            min-width: 260px !important;
-            max-width: 260px !important;
+            flex: 0 0 340px !important;
+            min-width: 340px !important;
+            max-width: 340px !important;
           }
           .profile-balances-row .balances-section {
             flex: 0 0 260px !important;

@@ -28,7 +28,6 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
   const [escrowBasis, setEscrowBasis] = useState('');
   const [escrowAmount, setEscrowAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'USDT' | 'USDC'>('USDC');
-  const [duration, setDuration] = useState('7');
   const [additionalNotes, setAdditionalNotes] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
@@ -69,16 +68,105 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
     if (!selectedContact || !role || !escrowBasis || !escrowAmount) return;
 
     // Determine buyer and seller based on role
-    const buyer = role === 'buyer' ? walletAddress : selectedContact.walletAddress;
-    const seller = role === 'seller' ? walletAddress : selectedContact.walletAddress;
+    // Trim wallet addresses to avoid whitespace mismatches
+    const buyer = role === 'buyer' ? walletAddress.trim() : selectedContact.walletAddress.trim();
+    const seller = role === 'seller' ? walletAddress.trim() : selectedContact.walletAddress.trim();
+    
+    console.log(`📝 Creating escrow:`);
+    console.log(`   Creator wallet: ${walletAddress.trim()}`);
+    console.log(`   Buyer: ${buyer}`);
+    console.log(`   Seller: ${seller}`);
+    console.log(`   Role: ${role}`);
 
     // Create escrow ID
     const escrowId = `escrow-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const createdAt = new Date().toISOString();
 
-    // Create new escrow object
+    let finalEscrowId = escrowId;
+    let supabaseInsertSuccess = false;
+
+    // First, try to create escrow in Supabase (source of truth)
+    try {
+      const insertData = {
+        id: escrowId,
+        buyer_wallet_address: buyer.trim(),
+        seller_wallet_address: seller.trim(),
+        commodity: escrowBasis,
+        amount: parseFloat(escrowAmount),
+        status: 'waiting' as const,
+        duration_days: 7, // Default duration
+        additional_notes: additionalNotes || null,
+        payment_method: paymentMethod,
+        created_by: walletAddress.trim(),
+        created_at: createdAt,
+        updated_at: createdAt
+      };
+      
+      console.log('📤 Inserting escrow to Supabase:', insertData);
+      
+      const { data, error: supabaseError } = await supabase
+        .from('escrows')
+        .insert(insertData)
+        .select()
+        .single();
+
+      if (supabaseError) {
+        // If table doesn't exist, log and use localStorage fallback
+        if (supabaseError.code === 'PGRST205' || supabaseError.code === '42P01') {
+          console.log('Escrows table not found in Supabase, using localStorage fallback');
+        } else {
+          console.error('❌ Error creating escrow in Supabase:', supabaseError);
+          console.error(`   Error code: ${supabaseError.code}, Message: ${supabaseError.message}`);
+          console.error(`   Error details:`, supabaseError);
+        }
+      } else {
+        console.log('✅ Escrow created successfully in Supabase:', data);
+        supabaseInsertSuccess = true;
+        // Use the ID returned from Supabase (in case it's different)
+        if (data?.id) {
+          finalEscrowId = data.id;
+          console.log('Using Supabase ID:', finalEscrowId);
+        }
+        
+        // Verify the escrow was saved correctly by fetching it back
+        const { data: verifyData, error: verifyError } = await supabase
+          .from('escrows')
+          .select('*')
+          .eq('id', finalEscrowId)
+          .single();
+        
+        if (verifyError) {
+          console.error('❌ Error verifying escrow in Supabase:', verifyError);
+        } else {
+          console.log('✅ Verified escrow exists in Supabase:', verifyData);
+          console.log(`   Status: ${verifyData?.status}, Buyer: ${verifyData?.buyer_wallet_address}, Seller: ${verifyData?.seller_wallet_address}`);
+          
+          // Test if the other user (recipient) can see this escrow
+          const otherUserWallet = (buyer.trim() === walletAddress.trim()) ? seller.trim() : buyer.trim();
+          console.log(`🔍 Testing if other user (${otherUserWallet}) can see this escrow...`);
+          
+          const { data: recipientView, error: recipientError } = await supabase
+            .from('escrows')
+            .select('*')
+            .or(`buyer_wallet_address.eq.${otherUserWallet},seller_wallet_address.eq.${otherUserWallet}`)
+            .eq('id', finalEscrowId)
+            .single();
+          
+          if (recipientError) {
+            console.error(`❌ Other user (${otherUserWallet}) CANNOT see this escrow:`, recipientError);
+            console.error(`   Error code: ${recipientError.code}, Message: ${recipientError.message}`);
+          } else {
+            console.log(`✅ Other user (${otherUserWallet}) CAN see this escrow:`, recipientView);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ Exception creating escrow in Supabase:', error);
+    }
+
+    // Create new escrow object with final ID
     const newEscrow: Escrow = {
-      id: escrowId,
+      id: finalEscrowId,
       buyer,
       seller,
       commodity: escrowBasis,
@@ -89,41 +177,6 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
       paymentMethod: paymentMethod
     };
 
-    // First, try to create escrow in Supabase (source of truth)
-    try {
-      const { data, error: supabaseError } = await supabase
-        .from('escrows')
-        .insert({
-          id: escrowId,
-          buyer_wallet_address: buyer,
-          seller_wallet_address: seller,
-          commodity: escrowBasis,
-          amount: parseFloat(escrowAmount),
-          status: 'waiting' as const,
-          duration_days: parseInt(duration),
-          additional_notes: additionalNotes || null,
-          payment_method: paymentMethod,
-          created_by: walletAddress,
-          created_at: createdAt,
-          updated_at: createdAt
-        })
-        .select()
-        .single();
-
-      if (supabaseError) {
-        // If table doesn't exist, log and use localStorage fallback
-        if (supabaseError.code === 'PGRST205' || supabaseError.code === '42P01') {
-          console.log('Escrows table not found in Supabase, using localStorage fallback');
-        } else {
-          console.error('Error creating escrow in Supabase:', supabaseError);
-        }
-      } else {
-        console.log('✅ Escrow created successfully in Supabase:', data);
-      }
-    } catch (error) {
-      console.error('Error creating escrow in Supabase:', error);
-    }
-
     // Update local state for current user
     // If Supabase succeeded, this will just update local cache
     // If Supabase failed, this will save to localStorage as fallback
@@ -132,7 +185,10 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
       items: [...currentEscrowsData.items, newEscrow]
     };
 
-    // Update escrows for current user (this will sync to Supabase if not already done)
+    // Always call updateEscrows to update local state
+    // If Supabase insert succeeded, the upsert will just update the existing record
+    // If Supabase insert failed, the upsert will create it
+    console.log(`📝 Calling updateEscrows (Supabase insert ${supabaseInsertSuccess ? 'succeeded' : 'failed'})`);
     updateEscrows(updatedEscrows);
 
     // IMPORTANT: Do NOT save to other user's localStorage
@@ -525,29 +581,6 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
               </p>
             </div>
 
-            {/* Duration */}
-            <div className="form-group" style={{ marginBottom: '0.875rem' }}>
-              <label htmlFor="duration" style={{ display: 'block', marginBottom: '0.375rem', fontWeight: '600', fontSize: '0.8rem' }}>
-                Duration (days)
-              </label>
-              <input
-                type="number"
-                id="duration"
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-                min="1"
-                style={{
-                  width: '100%',
-                  padding: '0.5rem 0.75rem',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '2.4px',
-                  background: 'var(--bg-light)',
-                  color: 'var(--text-dark)',
-                  fontSize: '0.8rem'
-                }}
-              />
-            </div>
-
             {/* Supporting Documents */}
             <div className="form-group" style={{ marginBottom: '0.875rem' }}>
               <label style={{ display: 'block', marginBottom: '0.375rem', fontWeight: '600', fontSize: '0.8rem' }}>
@@ -742,15 +775,6 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
                     }}
                   />
                 )}
-              </div>
-            </div>
-
-            <div style={{ marginBottom: '0.875rem' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-light)', marginBottom: '0.5rem', fontWeight: '600' }}>
-                Duration
-              </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem 0.75rem', background: 'var(--bg-light)', borderRadius: '2.4px' }}>
-                {duration} days
               </div>
             </div>
 
