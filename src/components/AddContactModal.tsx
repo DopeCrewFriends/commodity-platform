@@ -70,13 +70,13 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ onClose }) => {
     if (selectedUser && selectedUser.username) {
       try {
         await sendContactRequest(selectedUser.username);
-        onClose();
+          onClose();
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to send contact request. Please try again.');
       }
-    } else {
+        } else {
       setError('Please search for and select a user');
-    }
+        }
   };
 
   const renderUserItem = (user: ProfileData, isSelected: boolean = false) => {
@@ -97,12 +97,12 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ onClose }) => {
         onMouseEnter={(e) => {
           if (!isSelected) {
             e.currentTarget.style.backgroundColor = 'var(--bg-light)';
-    }
+      }
         }}
         onMouseLeave={(e) => {
           if (!isSelected) {
             e.currentTarget.style.backgroundColor = 'transparent';
-          }
+      }
         }}
       >
         <div className="contact-avatar">{initials}</div>

@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS escrows (
     seller_wallet_address TEXT NOT NULL,
     commodity TEXT NOT NULL,
     amount DECIMAL(18, 2) NOT NULL,
-    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'rejected', 'cancelled', 'completed')),
+    status TEXT NOT NULL DEFAULT 'waiting' CHECK (status IN ('waiting', 'ongoing', 'completed', 'cancelled')),
     duration_days INTEGER NOT NULL DEFAULT 7,
     additional_notes TEXT,
     payment_method TEXT CHECK (payment_method IN ('USDT', 'USDC')), -- Payment method (USDT or USDC)

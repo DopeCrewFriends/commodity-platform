@@ -22,7 +22,7 @@ const BalancesSection: React.FC<BalancesSectionProps> = ({ balances, solPrice, l
         <div className="balances-header-content">
           <div className="balances-title-section">
             <div className="total-balance">
-              <span className="balance-label">Total Balance</span>
+              <span className="balance-label">Balance</span>
               <span className="balance-amount" id="totalBalanceValue">
                 {totalUSDDisplay}
               </span>

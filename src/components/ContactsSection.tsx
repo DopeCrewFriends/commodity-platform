@@ -54,11 +54,9 @@ const ContactsSection: React.FC = () => {
                       <div className="contact-avatar">{initials}</div>
                       <div className="contact-info">
                         <div className="contact-name">
-                          {contact.name || 'Unknown'}
+                          <span className="contact-name-text">{contact.name || 'Unknown'}</span>
                           {contact.username && (
-                            <span style={{ color: '#666', fontSize: '0.9em', marginLeft: '0.5rem' }}>
-                              @{contact.username}
-                            </span>
+                            <span className="contact-username">@{contact.username}</span>
                           )}
                         </div>
                         <div className="contact-email">{contact.email || 'No email'}</div>

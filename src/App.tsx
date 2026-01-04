@@ -12,6 +12,7 @@ import WalletModal from './components/WalletModal';
 import ProfileCompletionModal from './components/ProfileCompletionModal';
 import EditProfileModal from './components/EditProfileModal';
 import Navigation from './components/Navigation';
+import Footer from './components/Footer';
 
 function AppContent() {
   const { walletAddress, isConnected, connect, disconnect } = useWallet();
@@ -55,7 +56,7 @@ function AppContent() {
         } else {
           // Profile exists but is incomplete - show completion modal
           console.log('Profile incomplete - showing completion modal');
-          setShowProfileCompletion(true);
+        setShowProfileCompletion(true);
         }
       } else {
         // Profile doesn't exist in database (all fields empty) - show completion modal for new user
@@ -225,6 +226,8 @@ function AppContent() {
           onClose={() => setShowWalletModal(false)}
         />
       )}
+      
+      <Footer />
     </>
   );
 }

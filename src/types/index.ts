@@ -18,13 +18,16 @@ export interface TokenBalance {
   USDT: { amount: number };
 }
 
+// Standardized escrow status values
+export type EscrowStatus = 'waiting' | 'ongoing' | 'completed' | 'cancelled';
+
 export interface Escrow {
   id: string;
   buyer: string;
   seller: string;
   commodity: string;
   amount: number;
-  status: string;
+  status: EscrowStatus;
   startDate: string;
   created_by?: string; // Wallet address of user who created the escrow
   paymentMethod?: 'USDT' | 'USDC'; // Payment method specified by buyer

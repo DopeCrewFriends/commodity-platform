@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { EscrowsData, Escrow } from '../types';
 import { loadUserData, saveUserData } from '../utils/storage';
 import { supabase } from '../utils/supabase';
+import { normalizeEscrowStatus, isActiveEscrowStatus } from '../utils/escrowStatus';
 
 export function useEscrows(walletAddress: string | null) {
   const [escrowsData, setEscrowsData] = useState<EscrowsData>({
@@ -40,18 +41,20 @@ export function useEscrows(walletAddress: string | null) {
         }
 
         if (supabaseEscrows && supabaseEscrows.length > 0) {
-          // Convert Supabase format to local Escrow format
-          const escrows: Escrow[] = supabaseEscrows.map((escrow: any) => ({
-            id: escrow.id,
-            buyer: escrow.buyer_wallet_address,
-            seller: escrow.seller_wallet_address,
-            commodity: escrow.commodity,
-            amount: parseFloat(escrow.amount),
-            status: escrow.status,
-            startDate: escrow.created_at || new Date().toISOString(),
-            created_by: escrow.created_by,
-            paymentMethod: escrow.payment_method || 'USDC' // Default to USDC if not set
-          }));
+          // Convert Supabase format to local Escrow format and normalize statuses
+          const escrows: Escrow[] = supabaseEscrows
+            .filter((escrow: any) => isActiveEscrowStatus(escrow.status)) // Filter out rejected only
+            .map((escrow: any) => ({
+              id: escrow.id,
+              buyer: escrow.buyer_wallet_address,
+              seller: escrow.seller_wallet_address,
+              commodity: escrow.commodity,
+              amount: parseFloat(escrow.amount),
+              status: normalizeEscrowStatus(escrow.status), // Normalize to new status format
+              startDate: escrow.created_at || new Date().toISOString(),
+              created_by: escrow.created_by,
+              paymentMethod: escrow.payment_method || 'USDC' // Default to USDC if not set
+            }));
 
           const totalAmount = escrows.reduce((sum, escrow) => sum + escrow.amount, 0);
           const escrowsData: EscrowsData = {
@@ -99,7 +102,20 @@ export function useEscrows(walletAddress: string | null) {
       }
       
       if (saved) {
-        setEscrowsData(saved);
+        // Normalize statuses in saved data
+        const normalizedEscrows = saved.items
+          .filter(escrow => isActiveEscrowStatus(escrow.status))
+          .map(escrow => ({
+            ...escrow,
+            status: normalizeEscrowStatus(escrow.status)
+          }));
+        const normalizedData: EscrowsData = {
+          totalAmount: normalizedEscrows.reduce((sum, e) => sum + e.amount, 0),
+          items: normalizedEscrows
+        };
+        setEscrowsData(normalizedData);
+        // Save normalized data back
+        saveUserData(walletAddress, 'escrows', normalizedData);
       } else {
         const defaultData = { totalAmount: 0, items: [] };
         setEscrowsData(defaultData);

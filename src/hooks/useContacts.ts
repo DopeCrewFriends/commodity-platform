@@ -1,15 +1,22 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ProfileData } from '../types';
 import { supabase } from '../utils/supabase';
 import { useAuth } from './useAuth';
+import { loadUserData, saveUserData } from '../utils/storage';
+
+// In-memory cache to share contacts across hook instances
+const contactsCache = new Map<string, { data: ProfileData[]; timestamp: number }>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_KEY_PREFIX = 'contacts_cache_';
 
 export function useContacts() {
   const { walletAddress } = useAuth();
   const [contacts, setContacts] = useState<ProfileData[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
+  const loadingRef = useRef(false);
 
-  // Load contacts from Supabase using wallet_address
+  // Load contacts from Supabase using wallet_address with caching
   useEffect(() => {
     if (!walletAddress) {
       setContacts([]);
@@ -17,48 +24,92 @@ export function useContacts() {
     }
 
     const loadContacts = async () => {
+      // Prevent multiple simultaneous loads
+      if (loadingRef.current) return;
+      
+      // Check in-memory cache first
+      const cacheKey = `${CACHE_KEY_PREFIX}${walletAddress}`;
+      const cached = contactsCache.get(cacheKey);
+      const now = Date.now();
+      
+      if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+        setContacts(cached.data);
+        return;
+      }
+
+      // Check localStorage cache
+      const savedContacts = loadUserData<ProfileData[]>(walletAddress, 'contacts');
+      if (savedContacts && savedContacts.length > 0) {
+        // Use cached data immediately while fetching fresh data
+        setContacts(savedContacts);
+        contactsCache.set(cacheKey, { data: savedContacts, timestamp: now });
+        
+        // Fetch fresh data in background
+        loadingRef.current = true;
       setLoading(true);
       try {
-        // Get contact wallet addresses for current user
-        const { data: contactRelations, error: contactsError } = await supabase
-          .from('contacts')
-          .select('contact_wallet_address')
-          .eq('user_wallet_address', walletAddress);
-
-        if (contactsError) throw contactsError;
-
-        if (!contactRelations || contactRelations.length === 0) {
-          setContacts([]);
-          return;
+          await fetchAndCacheContacts(walletAddress, cacheKey);
+        } finally {
+          loadingRef.current = false;
+          setLoading(false);
         }
+        return;
+      }
 
-        // Get profiles for all contacts
-        const contactWalletAddresses = contactRelations.map(c => c.contact_wallet_address);
-        const { data: profiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('*')
-          .in('wallet_address', contactWalletAddresses);
-
-        if (profilesError) throw profilesError;
-
-        // Map to ProfileData format
-        const mappedContacts: ProfileData[] = (profiles || []).map(profile => ({
-          name: profile.name,
-          email: profile.email,
-          company: profile.company,
-          location: profile.location,
-          walletAddress: profile.wallet_address || '',
-          avatarImage: profile.avatar_image,
-          username: profile.username
-        }));
-
-        setContacts(mappedContacts);
+      // No cache, fetch from Supabase
+      loadingRef.current = true;
+      setLoading(true);
+      try {
+        await fetchAndCacheContacts(walletAddress, cacheKey);
       } catch (error) {
         console.error('Error loading contacts:', error);
         setContacts([]);
       } finally {
+        loadingRef.current = false;
         setLoading(false);
       }
+    };
+
+    const fetchAndCacheContacts = async (address: string, cacheKey: string) => {
+      // Get contact wallet addresses for current user
+      const { data: contactRelations, error: contactsError } = await supabase
+        .from('contacts')
+        .select('contact_wallet_address')
+        .eq('user_wallet_address', address);
+
+      if (contactsError) throw contactsError;
+
+      if (!contactRelations || contactRelations.length === 0) {
+        setContacts([]);
+        contactsCache.set(cacheKey, { data: [], timestamp: Date.now() });
+        saveUserData(address, 'contacts', []);
+        return;
+      }
+
+      // Get profiles for all contacts
+      const contactWalletAddresses = contactRelations.map(c => c.contact_wallet_address);
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('wallet_address', contactWalletAddresses);
+
+      if (profilesError) throw profilesError;
+
+      // Map to ProfileData format
+      const mappedContacts: ProfileData[] = (profiles || []).map(profile => ({
+        name: profile.name,
+        email: profile.email,
+        company: profile.company,
+        location: profile.location,
+        walletAddress: profile.wallet_address || '',
+        avatarImage: profile.avatar_image,
+        username: profile.username
+      }));
+
+      // Update cache and state
+      setContacts(mappedContacts);
+      contactsCache.set(cacheKey, { data: mappedContacts, timestamp: Date.now() });
+      saveUserData(address, 'contacts', mappedContacts);
     };
 
     loadContacts();
@@ -172,41 +223,27 @@ export function useContacts() {
 
       if (error) throw error;
 
-      // Reload contacts
-      const { data: contactRelations } = await supabase
-        .from('contacts')
-        .select('contact_wallet_address')
-        .eq('user_wallet_address', walletAddress);
-
-      if (contactRelations && contactRelations.length > 0) {
-        const contactWalletAddresses = contactRelations.map(c => c.contact_wallet_address);
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('*')
-          .in('wallet_address', contactWalletAddresses);
-
-        if (profiles) {
-          const mappedContacts: ProfileData[] = profiles.map(profile => ({
-            name: profile.name,
-            email: profile.email,
-            company: profile.company,
-            location: profile.location,
-            walletAddress: profile.wallet_address || '',
-            avatarImage: profile.avatar_image,
-            username: profile.username
-          }));
-          setContacts(mappedContacts);
-        } else {
-          setContacts([]);
-        }
-      } else {
-        setContacts([]);
-      }
+      // Update local state and cache immediately
+      const updatedContacts = contacts.filter(c => c.walletAddress !== contactWalletAddress);
+      setContacts(updatedContacts);
+      
+      const cacheKey = `${CACHE_KEY_PREFIX}${walletAddress}`;
+      contactsCache.set(cacheKey, { data: updatedContacts, timestamp: Date.now() });
+      saveUserData(walletAddress, 'contacts', updatedContacts);
     } catch (error) {
       console.error('Error removing contact:', error);
       throw error;
     }
   };
+
+  // Function to invalidate cache (useful when contacts are added externally)
+  const invalidateCache = useCallback(() => {
+    if (!walletAddress) return;
+    const cacheKey = `${CACHE_KEY_PREFIX}${walletAddress}`;
+    contactsCache.delete(cacheKey);
+    // Clear localStorage cache
+    saveUserData(walletAddress, 'contacts', []);
+  }, [walletAddress]);
 
   const searchUsers = useCallback(async (query: string): Promise<ProfileData[]> => {
     if (!walletAddress || !query || query.trim().length < 2) {
@@ -289,6 +326,7 @@ export function useContacts() {
     removeContact,
     searchUsers,
     getTopUsers,
-    loading
+    loading,
+    invalidateCache
   };
 }

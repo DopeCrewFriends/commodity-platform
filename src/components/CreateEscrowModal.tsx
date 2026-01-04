@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useContacts } from '../hooks/useContacts';
-import { Contact, EscrowsData } from '../types';
+import { Contact, EscrowsData, Escrow } from '../types';
 import { getInitials, loadUserData, saveUserData } from '../utils/storage';
 import { supabase } from '../utils/supabase';
 
@@ -15,7 +15,7 @@ interface CreateEscrowModalProps {
 const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({ 
   onClose, 
   onSelectContact,
-  walletAddress,
+  walletAddress, 
   currentEscrowsData,
   updateEscrows
 }) => {
@@ -85,7 +85,7 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
           seller_wallet_address: seller,
           commodity: escrowBasis,
           amount: parseFloat(escrowAmount),
-          status: 'pending',
+          status: 'waiting' as const,
           duration_days: parseInt(duration),
           additional_notes: additionalNotes || null,
           payment_method: paymentMethod,
@@ -102,13 +102,13 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
     }
 
     // Create new escrow object for local storage
-    const newEscrow = {
+    const newEscrow: Escrow = {
       id: escrowId,
       buyer,
       seller,
       commodity: escrowBasis,
       amount: parseFloat(escrowAmount),
-      status: 'pending',
+      status: 'waiting',
       startDate: new Date().toISOString(), // Use ISO string for consistent parsing
       created_by: walletAddress, // Track who created the escrow
       paymentMethod: paymentMethod // Set for both buyer and seller

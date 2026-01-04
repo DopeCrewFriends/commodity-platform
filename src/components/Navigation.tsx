@@ -86,7 +86,7 @@ const Navigation: React.FC<NavigationProps> = ({
                 Account
               </Link>
             </li>
-          </ul>
+        </ul>
         )}
         <div className="nav-right">
           {showThemeToggle && (
@@ -122,7 +122,7 @@ const Navigation: React.FC<NavigationProps> = ({
                 onClick={toggleDropdown} 
                 style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
               >
-                <span className="address-text">{formattedAddress}</span>
+              <span className="address-text">{formattedAddress}</span>
                 <svg 
                   width="12" 
                   height="12" 

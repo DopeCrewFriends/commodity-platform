@@ -37,11 +37,12 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
     const escrow = escrowsData.items.find(e => e.id === escrowId);
     if (!escrow) return;
 
-    let newStatus: string;
+    let newStatus: 'waiting' | 'ongoing' | 'completed' | 'cancelled';
     if (action === 'accept') {
-      newStatus = 'confirmed';
+      newStatus = 'ongoing';
     } else if (action === 'reject') {
-      newStatus = 'rejected';
+      // Rejected escrows map to cancelled
+      newStatus = 'cancelled';
     } else { // cancel
       newStatus = 'cancelled';
     }
@@ -80,7 +81,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
     });
 
     const totalAmount = updatedEscrows
-      .filter(e => e.status === 'confirmed' || e.status === 'pending')
+      .filter(e => e.status === 'ongoing' || e.status === 'waiting')
       .reduce((sum, e) => sum + e.amount, 0);
 
     // Update current user's escrows (this will also sync to Supabase via updateEscrows)
@@ -184,7 +185,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
           display: flex !important;
           gap: 0.75rem !important;
           margin-bottom: 1rem !important;
-          align-items: flex-start !important;
+          align-items: stretch !important;
           width: 100% !important;
           max-width: 100% !important;
         }
@@ -192,16 +193,29 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
           flex: 1 1 50% !important;
           margin-bottom: 0 !important;
           min-width: 0 !important;
+          display: flex !important;
+          flex-direction: column !important;
         }
         .escrows-contacts-row .contacts-section {
           flex: 1 1 50% !important;
           margin-bottom: 0 !important;
           min-width: 0 !important;
+          display: flex !important;
+          flex-direction: column !important;
+        }
+        .escrows-contacts-row .escrows-header-card,
+        .escrows-contacts-row .contacts-header-card {
+          flex: 1 !important;
+          display: flex !important;
+          flex-direction: column !important;
+          height: calc(100vh - 90px) !important;
+          max-height: calc(100vh - 90px) !important;
+          overflow: hidden !important;
         }
         .main-content-layout {
           display: flex !important;
           gap: 0.75rem !important;
-          align-items: flex-start !important;
+          align-items: stretch !important;
         }
         .main-content-left {
           flex: 1 1 auto !important;
@@ -258,23 +272,23 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
         <div className="container">
           <div className="main-content-layout">
             <div className="main-content-left">
-              <div className="profile-balances-row">
-                <ProfileCard
-                  profileData={profileData}
-                  statistics={statistics}
-                  onEditClick={() => setShowEditModal(true)}
-                  walletAddress={walletAddress}
-                />
-                <BalancesSection balances={balances} solPrice={solPrice} loading={loading} priceLoading={priceLoading} />
-              </div>
+          <div className="profile-balances-row">
+            <ProfileCard
+              profileData={profileData}
+              statistics={statistics}
+              onEditClick={() => setShowEditModal(true)}
+              walletAddress={walletAddress}
+            />
+            <BalancesSection balances={balances} solPrice={solPrice} loading={loading} priceLoading={priceLoading} />
+          </div>
 
-              <TradeHistorySection
-                tradeHistory={tradeHistory}
-                activeFilter={activeFilter}
-                onFilterChange={setActiveFilter}
-              />
+          <TradeHistorySection
+            tradeHistory={tradeHistory}
+            activeFilter={activeFilter}
+            onFilterChange={setActiveFilter}
+          />
 
-              <div className="escrows-contacts-row">
+          <div className="escrows-contacts-row">
                 <EscrowsSection escrowsData={escrowsData} updateEscrows={updateEscrows} />
                 <ContactsSection />
               </div>

@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { Escrow, ProfileData } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Escrow } from '../types';
 import { ContactRequest } from '../hooks/useNotifications';
 import { getInitials, loadUserData, saveUserData } from '../utils/storage';
-import { supabase } from '../utils/supabase';
+import { getEscrowStatusDisplay } from '../utils/escrowStatus';
+import { useProfilesCache } from '../hooks/useProfilesCache';
 
 interface Notification {
   id: string;
@@ -53,69 +54,30 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
       onDismissNotification(notificationId, type);
     }
   };
-  const [profiles, setProfiles] = useState<Record<string, ProfileData>>({});
 
-  // Fetch profiles for all buyers and sellers in escrows
-  useEffect(() => {
-    const fetchProfiles = async () => {
-      if (escrowsData.length === 0) return;
-
-      const walletAddresses = new Set<string>();
-      escrowsData.forEach(escrow => {
-        walletAddresses.add(escrow.buyer);
-        walletAddresses.add(escrow.seller);
-      });
-
-      if (walletAddresses.size === 0) return;
-
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .in('wallet_address', Array.from(walletAddresses));
-
-        if (error) {
-          // If table doesn't exist, continue without profile data
-          if (error.code === 'PGRST205' || error.code === '42P01') {
-            console.log('Profiles table not found, using wallet addresses only');
-            return;
-          }
-          throw error;
-        }
-
-        if (data) {
-          const profilesMap: Record<string, ProfileData> = {};
-          data.forEach(profile => {
-            profilesMap[profile.wallet_address] = {
-              name: profile.name,
-              email: profile.email,
-              company: profile.company,
-              location: profile.location,
-              walletAddress: profile.wallet_address || '',
-              avatarImage: profile.avatar_image,
-              username: profile.username
-            };
-          });
-          setProfiles(profilesMap);
-        }
-      } catch (error) {
-        console.error('Error fetching profiles for notifications:', error);
-      }
-    };
-
-    fetchProfiles();
+  // Get unique wallet addresses from escrows
+  const walletAddresses = useMemo(() => {
+    const addresses = new Set<string>();
+    escrowsData.forEach(escrow => {
+      addresses.add(escrow.buyer);
+      addresses.add(escrow.seller);
+    });
+    return Array.from(addresses);
   }, [escrowsData]);
 
-  // Filter escrows that need action (pending, cancelled, rejected, or confirmed status where user is buyer or seller)
-  // Show all escrows that are pending (for actions) or recently completed/cancelled (for status updates)
+  // Use shared profiles cache hook
+  const { profiles } = useProfilesCache(walletAddresses);
+
+  // Filter escrows that need action (waiting, ongoing, or completed status where user is buyer or seller)
+  // Show all escrows that are waiting (for actions) or recently ongoing/completed (for status updates)
   // Use useMemo to ensure it recalculates when escrowsData changes
   const pendingEscrows = React.useMemo(() => {
     if (!escrowsData || escrowsData.length === 0) return [];
     return escrowsData.filter(
       escrow => {
-        const status = escrow.status.toLowerCase();
-        const isPending = status === 'pending';
-        const isRecent = status === 'cancelled' || status === 'rejected' || status === 'confirmed';
+        const status = escrow.status;
+        const isWaiting = status === 'waiting';
+        const isRecent = status === 'ongoing' || status === 'completed' || status === 'cancelled';
         // Parse date - handle both ISO string and locale date string formats
         let escrowDate: Date;
         try {
@@ -127,9 +89,9 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
         } catch {
           escrowDate = new Date(); // Fallback to current date
         }
-        // Show pending escrows and recently completed ones (within last 7 days)
+        // Show waiting escrows and recently ongoing/completed ones (within last 7 days)
         const isRecentDate = isRecent && escrowDate.getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000;
-        return (isPending || isRecentDate) && 
+        return (isWaiting || isRecentDate) && 
                (escrow.buyer === walletAddress || escrow.seller === walletAddress);
       }
     );
@@ -188,10 +150,10 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
     const buyerProfile = profiles[escrow.buyer];
     const sellerProfile = profiles[escrow.seller];
     const isSentByMe = escrow.created_by === walletAddress;
-    const isCancelled = escrow.status.toLowerCase() === 'cancelled';
-    const isRejected = escrow.status.toLowerCase() === 'rejected';
-    const isConfirmed = escrow.status.toLowerCase() === 'confirmed';
-    const showActions = escrow.status.toLowerCase() === 'pending';
+    const isCompleted = escrow.status === 'completed';
+    const isOngoing = escrow.status === 'ongoing';
+    const isCancelled = escrow.status === 'cancelled';
+    const showActions = escrow.status === 'waiting';
 
     return (
       <div key={escrow.id} className="notification-item escrow-notification">
@@ -200,8 +162,8 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
           <div className="notification-title-section" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'nowrap', minWidth: 0 }}>
             <div className="notification-title" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
               {isCancelled ? 'Escrow Cancelled' :
-               isRejected ? 'Escrow Rejected' :
-               isConfirmed ? 'Escrow Confirmed' :
+               isCompleted ? 'Escrow Completed' :
+               isOngoing ? 'Escrow Ongoing' :
                isSentByMe ? 'Escrow Request Sent' : 'Escrow Action Required'}
             </div>
             <div className="notification-parties-inline" style={{
@@ -237,7 +199,7 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
                 }
               })()}
             </div>
-            {escrow.status.toLowerCase() !== 'pending' && (
+            {escrow.status !== 'waiting' && (
               <button
                 className="notification-dismiss-btn"
                 onClick={() => handleDismiss(escrow.id, 'escrow')}
@@ -324,15 +286,8 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
             )
           )}
           {!showActions && (
-            <div className="notification-status" style={{ 
-              fontSize: '0.7rem', 
-              color: 'var(--text-light)', 
-              fontStyle: 'italic',
-              marginTop: '0.5rem'
-            }}>
-              {isCancelled ? 'This escrow has been cancelled.' :
-               isRejected ? 'This escrow has been rejected.' :
-               'This escrow has been confirmed.'}
+            <div className={`escrow-status-full ${escrow.status}`} style={{ marginTop: '0.5rem' }}>
+              {getEscrowStatusDisplay(escrow.status)}
             </div>
           )}
         </div>
