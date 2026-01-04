@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useContacts } from '../hooks/useContacts';
 import { Contact, EscrowsData, Escrow } from '../types';
-import { getInitials, loadUserData, saveUserData } from '../utils/storage';
+import { getInitials } from '../utils/storage';
 import { supabase } from '../utils/supabase';
 
 interface CreateEscrowModalProps {
@@ -74,10 +74,24 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
 
     // Create escrow ID
     const escrowId = `escrow-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const createdAt = new Date().toISOString();
 
+    // Create new escrow object
+    const newEscrow: Escrow = {
+      id: escrowId,
+      buyer,
+      seller,
+      commodity: escrowBasis,
+      amount: parseFloat(escrowAmount),
+      status: 'waiting',
+      startDate: createdAt,
+      created_by: walletAddress,
+      paymentMethod: paymentMethod
+    };
+
+    // First, try to create escrow in Supabase (source of truth)
     try {
-      // Create escrow in Supabase (if table exists)
-      const { error: supabaseError } = await supabase
+      const { data, error: supabaseError } = await supabase
         .from('escrows')
         .insert({
           id: escrowId,
@@ -89,49 +103,41 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
           duration_days: parseInt(duration),
           additional_notes: additionalNotes || null,
           payment_method: paymentMethod,
-          created_by: walletAddress
-        });
+          created_by: walletAddress,
+          created_at: createdAt,
+          updated_at: createdAt
+        })
+        .select()
+        .single();
 
-      // If table doesn't exist, continue with localStorage fallback
-      if (supabaseError && supabaseError.code !== 'PGRST205' && supabaseError.code !== '42P01') {
-        console.warn('Error creating escrow in Supabase:', supabaseError);
+      if (supabaseError) {
+        // If table doesn't exist, log and use localStorage fallback
+        if (supabaseError.code === 'PGRST205' || supabaseError.code === '42P01') {
+          console.log('Escrows table not found in Supabase, using localStorage fallback');
+        } else {
+          console.error('Error creating escrow in Supabase:', supabaseError);
+        }
+      } else {
+        console.log('✅ Escrow created successfully in Supabase:', data);
       }
     } catch (error) {
-      // Supabase table might not exist yet, continue with localStorage
-      console.log('Using localStorage for escrow storage');
+      console.error('Error creating escrow in Supabase:', error);
     }
 
-    // Create new escrow object for local storage
-    const newEscrow: Escrow = {
-      id: escrowId,
-      buyer,
-      seller,
-      commodity: escrowBasis,
-      amount: parseFloat(escrowAmount),
-      status: 'waiting',
-      startDate: new Date().toISOString(), // Use ISO string for consistent parsing
-      created_by: walletAddress, // Track who created the escrow
-      paymentMethod: paymentMethod // Set for both buyer and seller
-    };
-
-    // Use current escrows data from state instead of localStorage
-    // Add new escrow
+    // Update local state for current user
+    // If Supabase succeeded, this will just update local cache
+    // If Supabase failed, this will save to localStorage as fallback
     const updatedEscrows: EscrowsData = {
       totalAmount: currentEscrowsData.totalAmount + newEscrow.amount,
       items: [...currentEscrowsData.items, newEscrow]
     };
 
-    // Update escrows for current user
+    // Update escrows for current user (this will sync to Supabase if not already done)
     updateEscrows(updatedEscrows);
 
-    // Also create escrow for the other user using the new storage format
-    // When they load their page, they'll see it in notifications and active escrows
-    const otherUserEscrows = loadUserData<EscrowsData>(selectedContact.walletAddress, 'escrows') || { totalAmount: 0, items: [] };
-    const otherUserUpdatedEscrows: EscrowsData = {
-      totalAmount: otherUserEscrows.totalAmount + newEscrow.amount,
-      items: [...otherUserEscrows.items, newEscrow]
-    };
-    saveUserData(selectedContact.walletAddress, 'escrows', otherUserUpdatedEscrows);
+    // IMPORTANT: Do NOT save to other user's localStorage
+    // The other user will fetch this escrow from Supabase when they load their page
+    // Supabase is the source of truth for cross-user data
 
     onSelectContact(selectedContact);
     onClose();
