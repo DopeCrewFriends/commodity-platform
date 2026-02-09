@@ -20,11 +20,11 @@ interface ProfilePageProps {
 
 const ProfilePage: React.FC<ProfilePageProps> = ({ 
   walletAddress,
-  onDisconnect
+  onDisconnect: _onDisconnect
 }) => {
   // Only load balances when profile is complete (ProfilePage only shows when profile is complete)
   const { balances, solPrice, loading, priceLoading } = useBalances(walletAddress);
-  const { profileData, statistics, updateProfile, checkUsernameAvailability, isProfileComplete, loading: profileLoading } = useProfile(false, walletAddress);
+  const { profileData, statistics, updateProfile, checkUsernameAvailability, loading: profileLoading } = useProfile(false, walletAddress);
   const { escrowsData, updateEscrows } = useEscrows(walletAddress);
   const { tradeHistory, activeFilter, setActiveFilter } = useTradeHistory(walletAddress);
   const { contactRequests, outgoingRequests, acceptContactRequest, rejectContactRequest } = useNotifications(walletAddress);
