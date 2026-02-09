@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { EscrowsData } from '../types';
+import { EscrowsData, Contact } from '../types';
 import { getInitials } from '../utils/storage';
 import { getEscrowStatusDisplay } from '../utils/escrowStatus';
 import { useProfilesCache } from '../hooks/useProfilesCache';
@@ -50,8 +50,7 @@ const EscrowsSection: React.FC<EscrowsSectionProps> = ({ escrowsData, updateEscr
     setShowCreateModal(true);
   };
 
-  const handleSelectContact = () => {
-    // Escrow is now created in the modal, just close it
+  const handleSelectContact = (_contact: Contact) => {
     setShowCreateModal(false);
   };
 
@@ -60,17 +59,16 @@ const EscrowsSection: React.FC<EscrowsSectionProps> = ({ escrowsData, updateEscr
     <>
       <div className="active-escrows-section">
         <div className="escrows-header-card" id="escrowsHeaderCard">
-          <div className="escrows-actions">
-            <button className="btn btn-primary create-escrow-btn" id="createEscrowBtn" onClick={handleCreateEscrow}>
-              Create Escrow
-            </button>
+          <div className="escrows-header-content">
+            <div className="escrows-title-section">
+              <h2>Escrows</h2>
+            </div>
+            <div className="escrows-actions">
+              <button className="btn btn-primary create-escrow-btn" id="createEscrowBtn" onClick={handleCreateEscrow}>
+                Create Escrow
+              </button>
+            </div>
           </div>
-        <div className="escrows-header-content">
-          <div className="escrows-title-section">
-            <h2>Escrows</h2>
-          </div>
-        </div>
-        
         <div className="active-escrows-content" id="activeEscrowsContent">
           <div className="escrows-filters">
             <button

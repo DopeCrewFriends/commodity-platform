@@ -4,8 +4,15 @@ import { loadUserData } from '../utils/storage';
 import { supabase } from '../utils/supabase';
 import { useAuth } from './useAuth';
 
-export function useProfile(skipLoadUntilComplete: boolean = false) {
-  const { walletAddress } = useAuth();
+/**
+ * @param skipLoadUntilComplete - If true, skip loading until profile is complete
+ * @param walletAddressOverride - When provided, use this wallet address instead of useAuth's.
+ *   Use this so profile loading uses the same wallet as the rest of the app (avoids two
+ *   useWallet() instances getting out of sync after connect()).
+ */
+export function useProfile(skipLoadUntilComplete: boolean = false, walletAddressOverride?: string | null) {
+  const { walletAddress: authWalletAddress } = useAuth();
+  const walletAddress = walletAddressOverride !== undefined ? walletAddressOverride : authWalletAddress;
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [statistics, setStatistics] = useState<Statistics>({
     memberSince: null,
@@ -39,34 +46,40 @@ export function useProfile(skipLoadUntilComplete: boolean = false) {
       setHasInitialized(false);
     }
 
+    const emptyProfileForWallet: ProfileData = {
+      name: '',
+      email: '',
+      company: '',
+      location: '',
+      walletAddress,
+      avatarImage: '',
+      username: ''
+    };
+
     const loadProfile = async () => {
       if (!mounted) return;
 
       if (skipLoadUntilComplete) {
         console.log('Skipping profile load - waiting for user to complete profile first');
         if (mounted) {
-          setProfileData({
-            name: '',
-            email: '',
-            company: '',
-            location: '',
-            walletAddress,
-            avatarImage: '',
-            username: ''
-          });
+          setProfileData(emptyProfileForWallet);
           setLoading(false);
           setHasInitialized(true);
         }
         return;
       }
-      
-      console.log('loadProfile called for wallet:', walletAddress);
+
+      // Show complete-profile form immediately (assume new user); we'll update when fetch completes.
+      // This avoids blocking on "Loading profile..." before we know if they have an existing profile.
       if (mounted) {
-        setLoading(true);
+        setProfileData(emptyProfileForWallet);
+        setLoading(false);
       }
-      
+
+      console.log('loadProfile called for wallet:', walletAddress);
+
       try {
-        // Fetch profile from Supabase directly using wallet_address
+        // Check / load existing profile from Supabase
         const { data, error } = await supabase
           .from('profiles')
           .select('*')
@@ -117,8 +130,10 @@ export function useProfile(skipLoadUntilComplete: boolean = false) {
           });
         }
       } finally {
+        // Always clear loading so we never get stuck on "Loading profile..."
+        // (effect cleanup can set mounted=false before the request completes)
+        setLoading(false);
         if (mounted) {
-          setLoading(false);
           setHasInitialized(true);
         }
       }
@@ -238,16 +253,14 @@ export function useProfile(skipLoadUntilComplete: boolean = false) {
       email: !!profileData.email?.trim(),
       company: !!profileData.company?.trim(),
       location: !!profileData.location?.trim(),
-      avatarImage: !!profileData.avatarImage?.trim(),
       username: !!profileData.username?.trim()
     };
-    
+
     const isComplete = !!(
       checks.name &&
       checks.email &&
       checks.company &&
       checks.location &&
-      checks.avatarImage &&
       checks.username
     );
     

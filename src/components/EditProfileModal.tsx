@@ -169,17 +169,13 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       setError('Username is required');
       return;
     }
-    if (!avatarImage?.trim()) {
-      setError('Avatar image is required');
-      return;
-    }
-    
+
     setSaving(true);
-    
+
     try {
       await onSave({
         ...formData,
-        avatarImage: avatarImage
+        avatarImage: avatarImage || ''
       });
       onClose();
     } catch (err) {
@@ -206,16 +202,17 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       <div className="edit-profile-container" onClick={(e) => e.stopPropagation()}>
         <form id="editProfileForm" className="edit-profile-form" onSubmit={handleSubmit}>
           <div className="profile-section profile-section-editing" id="editingProfileCard">
-            <div className="profile-actions">
-              <button type="button" className="btn btn-secondary" id="cancelEditBtn" onClick={onClose} disabled={saving} style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
-                Cancel
-              </button>
-              <button type="submit" className="btn btn-primary" disabled={saving} style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
-                {saving ? 'Saving...' : 'Save Changes'}
-              </button>
+            <div className="edit-profile-modal-header">
+              <p className="edit-profile-sign-in-note">Complete your profile to sign in.</p>
+              <div className="profile-actions">
+                <button type="submit" className="btn btn-primary" disabled={saving} style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
             </div>
-            <div className="profile-avatar-edit-container">
-              <div className="profile-avatar">
+            <div className="edit-profile-body">
+              <div className="profile-avatar-edit-container">
+                <div className="profile-avatar">
                 {avatarImage ? (
                   <>
                     <img 
@@ -244,12 +241,8 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
                 ) : (
                   <>
                     <div 
-                      className="avatar-placeholder" 
+                      className="avatar-placeholder avatar-placeholder-editing" 
                       id="editAvatarPlaceholder"
-                      style={{
-                        display: 'flex',
-                        zIndex: 1
-                      }}
                     >
                       {initials}
                     </div>
@@ -392,6 +385,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
                   </span>
                 </div>
               </div>
+            </div>
             </div>
             {error && (
               <div style={{ 

@@ -2,7 +2,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Escrow } from '../types';
 import { ContactRequest } from '../hooks/useNotifications';
 import { getInitials, loadUserData, saveUserData } from '../utils/storage';
-import { getEscrowStatusDisplay } from '../utils/escrowStatus';
 import { useProfilesCache } from '../hooks/useProfilesCache';
 
 interface Notification {
@@ -22,6 +21,8 @@ interface NotificationsPanelProps {
   onDismissNotification?: (notificationId: string, type: 'escrow' | 'contact_request') => void;
 }
 
+type FilterType = 'all' | 'escrow' | 'contact_request' | 'waiting' | 'ongoing' | 'completed' | 'cancelled';
+
 const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
   walletAddress,
   escrowsData,
@@ -31,6 +32,10 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
   onContactRequestAction,
   onDismissNotification
 }) => {
+  // Filter state
+  const [filter, setFilter] = useState<FilterType>('all');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+
   // Load dismissed notifications from localStorage on mount
   const [dismissedNotifications, setDismissedNotifications] = useState<Set<string>>(() => {
     if (!walletAddress) return new Set();
@@ -116,6 +121,23 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
     return filtered;
   }, [escrowsData, walletAddress]);
 
+  // Close filter dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.notifications-filter-container')) {
+        setIsFilterOpen(false);
+      }
+    };
+
+    if (isFilterOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [isFilterOpen]);
+
   const notifications: Notification[] = React.useMemo(() => {
     const allNotifications: Notification[] = [
       ...pendingEscrows.map(escrow => ({
@@ -138,6 +160,15 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
       }))
     ]
       .filter(notification => !dismissedNotifications.has(notification.id))
+      .filter(notification => {
+        if (filter === 'all') return true;
+        if (filter === 'escrow') return notification.type === 'escrow';
+        if (filter === 'contact_request') return notification.type === 'contact_request';
+        if (filter === 'waiting' || filter === 'ongoing' || filter === 'completed' || filter === 'cancelled') {
+          return notification.type === 'escrow' && (notification.data as Escrow).status === filter;
+        }
+        return true;
+      })
       .sort((a, b) => {
         // Parse timestamps - handle both ISO strings and other formats
         let dateA: Date;
@@ -163,7 +194,7 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
       });
     
     return allNotifications;
-  }, [pendingEscrows, contactRequests, outgoingRequests, dismissedNotifications]);
+  }, [pendingEscrows, contactRequests, outgoingRequests, dismissedNotifications, filter]);
 
   const renderEscrowNotification = (escrow: Escrow) => {
     const buyerProfile = profiles[escrow.buyer];
@@ -174,36 +205,30 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
     const isCancelled = escrow.status === 'cancelled';
     const showActions = escrow.status === 'waiting';
 
+    // Placeholder for signature counts - will be replaced with actual data later
+    const completeSignatures = 0; // TODO: Get from escrow data
+    const cancelSignatures = 0; // TODO: Get from escrow data
+    const totalRequired = 2;
+
     return (
       <div key={escrow.id} className="notification-item escrow-notification">
         <div className="notification-header">
-          <div className="notification-icon escrow-icon">💼</div>
-          <div className="notification-title-section" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'nowrap', minWidth: 0 }}>
-            <div className="notification-title" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
+          <div className="notification-title-section">
+            <div className={`escrow-status-badge ${escrow.status}`} style={{ alignSelf: 'flex-start' }}>
               {isCancelled ? 'Escrow Cancelled' :
-               isCompleted ? 'Escrow Completed' :
+               isCompleted ? 'Escrow Complete' :
                isOngoing ? 'Escrow Ongoing' :
-               isSentByMe ? 'Escrow Request Sent' : 'Escrow Action Required'}
+               'Escrow Action Required'}
             </div>
-            <div className="notification-parties-inline" style={{
-              fontSize: '0.65rem',
-              color: 'var(--text-light)',
-              display: 'flex',
-              gap: '0.375rem',
-              flexWrap: 'nowrap',
-              alignItems: 'center',
-              minWidth: 0,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis'
-            }}>
-              <span style={{ whiteSpace: 'nowrap' }}>
-                <strong>Buyer:</strong> {buyerProfile?.name || 'Unknown'}
-                {buyerProfile?.username && <span> @{buyerProfile.username}</span>}
+            <div className="notification-parties-inline">
+              <span className={escrow.buyer === walletAddress ? 'notification-party-current-user' : ''}>
+                <strong className="notification-party-label buyer-label">Buyer:</strong> 
+                <span className="notification-party-name">@{buyerProfile?.username || 'Unknown'}</span>
               </span>
-              <span style={{ flexShrink: 0 }}>•</span>
-              <span style={{ whiteSpace: 'nowrap' }}>
-                <strong>Seller:</strong> {sellerProfile?.name || 'Unknown'}
-                {sellerProfile?.username && <span> @{sellerProfile.username}</span>}
+              <span className="notification-party-arrow">→</span>
+              <span className={escrow.seller === walletAddress ? 'notification-party-current-user' : ''}>
+                <strong className="notification-party-label seller-label">Seller:</strong> 
+                <span className="notification-party-name">@{sellerProfile?.username || 'Unknown'}</span>
               </span>
             </div>
           </div>
@@ -218,7 +243,7 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
                 }
               })()}
             </div>
-            {escrow.status !== 'waiting' && (
+            {escrow.status !== 'waiting' && escrow.status !== 'ongoing' && (
               <button
                 className="notification-dismiss-btn"
                 onClick={() => handleDismiss(escrow.id, 'escrow')}
@@ -271,14 +296,10 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
           </div>
           {showActions && (
             isSentByMe ? (
-              <div className="notification-actions-waiting">
-                <div className={`escrow-status-full waiting`} style={{ marginTop: '0.5rem', flex: 1 }}>
-                  {getEscrowStatusDisplay(escrow.status)}
-                </div>
+              <div className="notification-actions">
                 <button
                   className="btn btn-secondary notification-action-btn notification-cancel-btn"
                   onClick={() => onEscrowAction(escrow.id, 'cancel')}
-                  style={{ marginTop: '0.5rem' }}
                 >
                   Cancel
                 </button>
@@ -300,9 +321,32 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
               </div>
             )
           )}
-          {!showActions && (
-            <div className={`escrow-status-full ${escrow.status}`} style={{ marginTop: '0.5rem' }}>
-              {getEscrowStatusDisplay(escrow.status)}
+          {isOngoing && (
+            <div className="notification-ongoing-actions">
+              <button
+                className="btn notification-action-btn notification-complete-btn"
+                onClick={() => {
+                  // TODO: Handle complete escrow with signature
+                  console.log('Complete escrow:', escrow.id);
+                }}
+              >
+                <span>Complete Escrow</span>
+                <span className="signature-counter">
+                  {completeSignatures}/{totalRequired}
+                </span>
+              </button>
+              <button
+                className="btn notification-action-btn notification-cancel-ongoing-btn"
+                onClick={() => {
+                  // TODO: Handle cancel escrow with signature
+                  console.log('Cancel escrow:', escrow.id);
+                }}
+              >
+                <span>Cancel Escrow</span>
+                <span className="signature-counter">
+                  {cancelSignatures}/{totalRequired}
+                </span>
+              </button>
             </div>
           )}
         </div>
@@ -421,6 +465,34 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
             <h2>Notifications</h2>
             {notifications.length > 0 && (
               <div className="notifications-count">{notifications.length}</div>
+            )}
+          </div>
+          <div className="notifications-filter-container">
+            <button
+              className="notifications-filter-btn"
+              onClick={() => setIsFilterOpen(!isFilterOpen)}
+            >
+              <span>Filter</span>
+              <span style={{ fontSize: '0.65rem' }}>▼</span>
+            </button>
+            {isFilterOpen && (
+              <div className="notifications-filter-dropdown">
+                {(['all', 'escrow', 'contact_request', 'waiting', 'ongoing', 'completed', 'cancelled'] as FilterType[]).map((filterOption) => (
+                  <button
+                    key={filterOption}
+                    onClick={() => {
+                      setFilter(filterOption);
+                      setIsFilterOpen(false);
+                    }}
+                    className={`filter-option ${filter === filterOption ? 'active' : ''}`}
+                  >
+                    {filterOption === 'all' ? 'All Notifications' :
+                     filterOption === 'escrow' ? 'All Escrows' :
+                     filterOption === 'contact_request' ? 'Contact Requests' :
+                     filterOption}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
         </div>

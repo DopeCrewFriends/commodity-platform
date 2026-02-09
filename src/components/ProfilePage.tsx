@@ -16,18 +16,15 @@ import EditProfileModal from './EditProfileModal';
 interface ProfilePageProps {
   walletAddress: string;
   onDisconnect: () => void;
-  onShowProfileCompletion: () => void;
-  onTriggerEdit?: (openEdit: () => void) => void;
 }
 
 const ProfilePage: React.FC<ProfilePageProps> = ({ 
-  walletAddress, 
-  onShowProfileCompletion,
-  onTriggerEdit
+  walletAddress,
+  onDisconnect
 }) => {
   // Only load balances when profile is complete (ProfilePage only shows when profile is complete)
   const { balances, solPrice, loading, priceLoading } = useBalances(walletAddress);
-  const { profileData, statistics, updateProfile, checkUsernameAvailability, isProfileComplete, loading: profileLoading } = useProfile(false);
+  const { profileData, statistics, updateProfile, checkUsernameAvailability, isProfileComplete, loading: profileLoading } = useProfile(false, walletAddress);
   const { escrowsData, updateEscrows } = useEscrows(walletAddress);
   const { tradeHistory, activeFilter, setActiveFilter } = useTradeHistory(walletAddress);
   const { contactRequests, outgoingRequests, acceptContactRequest, rejectContactRequest } = useNotifications(walletAddress);
@@ -99,20 +96,6 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
     }
     // The notifications will reload automatically via the hook
   };
-
-  React.useEffect(() => {
-    if (profileData && !isProfileComplete()) {
-      onShowProfileCompletion();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profileData]); // Only depend on profileData - onShowProfileCompletion and isProfileComplete are stable
-
-  // Expose method to open edit modal
-  React.useEffect(() => {
-    if (onTriggerEdit) {
-      onTriggerEdit(() => setShowEditModal(true));
-    }
-  }, [onTriggerEdit]);
 
   if (profileLoading || !profileData) {
     return <div>Loading...</div>;

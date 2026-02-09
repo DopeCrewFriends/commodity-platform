@@ -23,8 +23,7 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [currentStep, setCurrentStep] = useState<'select' | 'details' | 'review'>('select');
   
-  // Escrow form state
-  const [role, setRole] = useState<'buyer' | 'seller' | ''>('');
+  // Escrow form state (creator is always the buyer)
   const [escrowBasis, setEscrowBasis] = useState('');
   const [escrowAmount, setEscrowAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'USDT' | 'USDC'>('USDC');
@@ -59,24 +58,21 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
   };
 
   const handleCreateEscrow = () => {
-    if (selectedContact && role && escrowBasis && escrowAmount) {
+    if (selectedContact && escrowBasis && escrowAmount) {
       setCurrentStep('review');
     }
   };
 
   const handleConfirmEscrow = async () => {
-    if (!selectedContact || !role || !escrowBasis || !escrowAmount) return;
+    if (!selectedContact || !escrowBasis || !escrowAmount) return;
 
-    // Determine buyer and seller based on role
-    // Trim wallet addresses to avoid whitespace mismatches
-    const buyer = role === 'buyer' ? walletAddress.trim() : selectedContact.walletAddress.trim();
-    const seller = role === 'seller' ? walletAddress.trim() : selectedContact.walletAddress.trim();
-    
+    // Creator is always the buyer; selected contact is the seller
+    const buyer = walletAddress.trim();
+    const seller = selectedContact.walletAddress.trim();
+
     console.log(`📝 Creating escrow:`);
-    console.log(`   Creator wallet: ${walletAddress.trim()}`);
-    console.log(`   Buyer: ${buyer}`);
+    console.log(`   Creator (Buyer): ${buyer}`);
     console.log(`   Seller: ${seller}`);
-    console.log(`   Role: ${role}`);
 
     // Create escrow ID
     const escrowId = `escrow-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -218,11 +214,11 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
       <div className="wallet-modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px', padding: '0.875rem' }}>
         <div className="wallet-modal-header" style={{ marginBottom: '0.75rem' }}>
           <h2 style={{ fontSize: '1rem', marginBottom: '0.25rem' }}>Create Escrow</h2>
-          <p style={{ fontSize: '0.8rem' }}>
-            {currentStep === 'select' ? 'Choose a contact to create an escrow with' : 
-             currentStep === 'details' ? 'Fill in the escrow details' : 
-             'Review and confirm escrow details'}
-          </p>
+          {currentStep !== 'details' && (
+            <p style={{ fontSize: '0.8rem' }}>
+              {currentStep === 'select' ? 'Choose a contact to create an escrow with' : 'Review and confirm escrow details'}
+            </p>
+          )}
         </div>
 
         {currentStep === 'select' ? (
@@ -397,75 +393,44 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
           </>
         ) : currentStep === 'details' ? (
           <div className="escrow-details-form">
-            {/* Selected Contact Display */}
+            {/* Buyer (left) and Seller (right) with distinct colors */}
             {selectedContact && (
               <div style={{ 
-                padding: '0.5rem 0.75rem', 
-                backgroundColor: 'rgba(37, 99, 235, 0.05)', 
-                borderRadius: '2.4px',
-                marginBottom: '0.75rem',
-                border: '1px solid var(--border-color)'
+                display: 'flex',
+                gap: '0.5rem',
+                marginBottom: '0.75rem'
               }}>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-light)', marginBottom: '0.25rem' }}>
-                  Creating escrow with:
+                <div style={{ 
+                  flex: 1,
+                  padding: '0.5rem 0.75rem', 
+                  backgroundColor: 'rgba(34, 197, 94, 0.08)', 
+                  borderRadius: '2.4px',
+                  border: '1px solid rgba(34, 197, 94, 0.35)',
+                  borderLeft: '3px solid rgb(34, 197, 94)'
+                }}>
+                  <div style={{ fontSize: '0.7rem', color: 'rgb(22, 163, 74)', fontWeight: '600', marginBottom: '0.25rem' }}>Buyer</div>
+                  <div style={{ fontWeight: '600', fontSize: '0.8rem', color: 'var(--text-dark)' }}>You</div>
                 </div>
-                <div style={{ fontWeight: '600', fontSize: '0.8rem', color: 'var(--text-dark)' }}>
-                  {selectedContact.name || 'Unknown'}
-                  {(selectedContact as any).username && (
-                    <span style={{ color: 'var(--text-light)', fontSize: '0.75em', marginLeft: '0.5rem' }}>
-                      @{(selectedContact as any).username}
-                    </span>
-                  )}
+                <div style={{ 
+                  flex: 1,
+                  padding: '0.5rem 0.75rem', 
+                  backgroundColor: 'rgba(234, 179, 8, 0.1)', 
+                  borderRadius: '2.4px',
+                  border: '1px solid rgba(234, 179, 8, 0.35)',
+                  borderLeft: '3px solid rgb(234, 179, 8)'
+                }}>
+                  <div style={{ fontSize: '0.7rem', color: 'rgb(202, 138, 4)', fontWeight: '600', marginBottom: '0.25rem' }}>Seller</div>
+                  <div style={{ fontWeight: '600', fontSize: '0.8rem', color: 'var(--text-dark)' }}>
+                    {selectedContact.name || 'Unknown'}
+                    {(selectedContact as any).username && (
+                      <span style={{ color: 'var(--text-light)', fontSize: '0.75em', marginLeft: '0.5rem' }}>
+                        @{(selectedContact as any).username}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
-
-            {/* I am - Role Selection */}
-            <div className="form-group" style={{ marginBottom: '0.875rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.375rem', fontWeight: '600', fontSize: '0.8rem' }}>
-                I am
-              </label>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button
-                  type="button"
-                  onClick={() => setRole('buyer')}
-                  style={{
-                    flex: 1,
-                    padding: '0.5rem 0.75rem',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '2.4px',
-                    background: role === 'buyer' ? 'var(--primary-color)' : 'var(--bg-light)',
-                    color: role === 'buyer' ? 'var(--white)' : 'var(--text-dark)',
-                    fontSize: '0.8rem',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    fontWeight: '600',
-                    opacity: role === 'buyer' ? 1 : 0.6
-                  }}
-                >
-                  Buyer
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole('seller')}
-                  style={{
-                    flex: 1,
-                    padding: '0.5rem 0.75rem',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '2.4px',
-                    background: role === 'seller' ? 'var(--primary-color)' : 'var(--bg-light)',
-                    color: role === 'seller' ? 'var(--white)' : 'var(--text-dark)',
-                    fontSize: '0.8rem',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    fontWeight: '600',
-                    opacity: role === 'seller' ? 1 : 0.6
-                  }}
-                >
-                  Seller
-                </button>
-              </div>
-            </div>
 
             {/* Escrow Basis */}
             <div className="form-group" style={{ marginBottom: '0.875rem' }}>
@@ -703,12 +668,12 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
                 type="button" 
                 className="btn btn-primary" 
                 onClick={handleCreateEscrow}
-                disabled={!role || !escrowBasis || !escrowAmount}
+                disabled={!escrowBasis || !escrowAmount}
                 style={{ 
                   padding: '0.5rem 0.875rem', 
                   fontSize: '0.8rem', 
-                  opacity: (role && escrowBasis && escrowAmount) ? 1 : 0.5, 
-                  cursor: (role && escrowBasis && escrowAmount) ? 'pointer' : 'not-allowed' 
+                  opacity: (escrowBasis && escrowAmount) ? 1 : 0.5, 
+                  cursor: (escrowBasis && escrowAmount) ? 'pointer' : 'not-allowed' 
                 }}
               >
                 Review
@@ -738,15 +703,6 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
                     @{(selectedContact as any).username}
                   </span>
                 )}
-              </div>
-            </div>
-
-            <div style={{ marginBottom: '0.875rem' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-light)', marginBottom: '0.5rem', fontWeight: '600' }}>
-                Your Role
-              </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem 0.75rem', background: 'var(--bg-light)', borderRadius: '2.4px', textTransform: 'capitalize' }}>
-                {role}
               </div>
             </div>
 

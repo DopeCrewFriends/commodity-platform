@@ -10,7 +10,7 @@ interface AccountPageProps {
 }
 
 const AccountPage: React.FC<AccountPageProps> = ({ walletAddress }) => {
-  const { profileData, statistics, updateProfile, checkUsernameAvailability } = useProfile(false);
+  const { profileData, statistics, updateProfile, checkUsernameAvailability } = useProfile(false, walletAddress);
   const [showEditModal, setShowEditModal] = useState(false);
 
   if (!profileData) {

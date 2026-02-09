@@ -11,36 +11,36 @@ const ContactsSection: React.FC = () => {
     <>
       <div className="contacts-section">
         <div className="contacts-header-card" id="contactsHeaderCard">
-          <div className="contacts-actions">
-            <button 
-              className="btn btn-primary add-contact-btn" 
-              id="addContactBtn"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowAddModal(true);
-              }}
-            >
-              Add Contact
-            </button>
-          </div>
           <div className="contacts-header-content">
             <div className="contacts-title-section">
               <h2>Contacts</h2>
             </div>
-          </div>
-          
-          <div className="contacts-content" id="contactsContent">
             <div className="contacts-search-container">
               <input 
                 type="text" 
                 className="contacts-search-input" 
                 id="contactsSearchInput"
-                placeholder="Search contacts by name, email, or username..."
+                placeholder="Search contacts"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
               <span className="search-icon">🔍</span>
             </div>
+            <div className="contacts-actions">
+              <button 
+                className="btn btn-primary add-contact-btn" 
+                id="addContactBtn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowAddModal(true);
+                }}
+              >
+                Add Contact
+              </button>
+            </div>
+          </div>
+          
+          <div className="contacts-content" id="contactsContent">
             <div className="contacts-list" id="contactsList">
               {contacts.length === 0 ? (
                 <div className="no-contacts-message" id="noContactsMessage" style={{ display: 'block' }}>

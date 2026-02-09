@@ -3,7 +3,7 @@ export interface ProfileData {
   email: string;
   company: string;
   location: string;
-  avatarImage: string; // Required - all fields must be filled
+  avatarImage: string; // Optional for sign-in; can be empty string (initials used as fallback)
   walletAddress: string; // Optional: for backward compatibility
   username: string; // Required - all fields must be filled
   userId?: string; // Optional: user_id from auth (for internal use)

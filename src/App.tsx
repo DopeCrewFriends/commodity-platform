@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useWallet } from './hooks/useWallet';
 import { useTheme } from './hooks/useTheme';
@@ -9,7 +9,6 @@ import ProfilePage from './components/ProfilePage';
 import AccountPage from './components/AccountPage';
 import EscrowsPage from './components/EscrowsPage';
 import WalletModal from './components/WalletModal';
-import ProfileCompletionModal from './components/ProfileCompletionModal';
 import EditProfileModal from './components/EditProfileModal';
 import Navigation from './components/Navigation';
 import Footer from './components/Footer';
@@ -19,12 +18,10 @@ function AppContent() {
   const { signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [showWalletModal, setShowWalletModal] = useState(false);
-  const [showProfileCompletion, setShowProfileCompletion] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   
-  // Check profile completion - uses wallet address
-  // Load profile from database first to check if it exists and is complete
-  const { profileData, statistics, updateProfile, checkUsernameAvailability, isProfileComplete, loading: profileLoading } = useProfile(false);
+  // Use same wallet as rest of app so profile loads right after connect (single source of truth)
+  const { profileData, statistics, updateProfile, checkUsernameAvailability, isProfileComplete, loading: profileLoading } = useProfile(false, walletAddress);
 
   useEffect(() => {
     // Force dark theme on landing page
@@ -33,41 +30,15 @@ function AppContent() {
     }
   }, [isConnected]);
 
-  // Check profile completion when wallet is connected and profile loads
+  // When profile is incomplete, open the edit profile modal directly
   useEffect(() => {
-    // Only check when we have all required data
-    if (!isConnected || !walletAddress) {
-      setShowProfileCompletion(false);
+    if (!isConnected || !walletAddress || profileLoading || !profileData) {
       return;
     }
-
-    // Wait for profile to finish loading - this is critical
-    if (profileLoading) {
-      setShowProfileCompletion(false);
-      return;
-    }
-
-    // After loading completes, check if we have profile data
-    // If profileData is null after loading completes, it means:
-    // 1. Profile doesn't exist in database (new user) - show modal
-    // 2. OR there was an error loading - but we set empty profile, so still show modal
-    if (!profileData) {
-      console.log('⚠️ No profile data found after loading - showing completion modal');
-      setShowProfileCompletion(true);
-      return;
-    }
-
-    // Now check if profile is complete (we know profileData exists)
-    const isComplete = isProfileComplete();
-    
-    if (isComplete) {
-      // Profile is complete - hide completion modal and allow access
-      console.log('✅ Profile complete - user can access the app');
-      setShowProfileCompletion(false);
+    if (!isProfileComplete()) {
+      setShowEditModal(true);
     } else {
-      // Profile exists but is incomplete - show completion modal
-      console.log('⚠️ Profile incomplete - showing completion modal');
-      setShowProfileCompletion(true);
+      setShowEditModal(false);
     }
   }, [isConnected, walletAddress, profileLoading, profileData, isProfileComplete]);
 
@@ -85,21 +56,11 @@ function AppContent() {
   const handleDisconnect = async () => {
     await signOut();
     await disconnect();
-    setShowProfileCompletion(false);
+    setShowEditModal(false);
   };
 
-  // Memoize callbacks to prevent infinite re-renders
-  const handleShowProfileCompletion = useCallback(() => {
-    setShowProfileCompletion(true);
-  }, []);
-
-  const handleTriggerEdit = useCallback((_openEdit: () => void) => {
-    // This callback is used by ProfilePage to trigger edit modal
-    // The edit modal is controlled by showEditModal state
-  }, []);
-
   // Determine if user can access protected routes
-  const canAccess = isConnected && walletAddress && !showProfileCompletion && isProfileComplete();
+  const canAccess = isConnected && walletAddress && isProfileComplete();
 
   return (
     <>
@@ -115,19 +76,7 @@ function AppContent() {
       
       {isConnected && walletAddress ? (
         <>
-          {/* Show profile completion modal if profile is incomplete - blocks access */}
-          {showProfileCompletion && (
-            <ProfileCompletionModal
-              onComplete={() => {
-                // Open edit modal after completion modal animation finishes
-                setTimeout(() => {
-                  setShowEditModal(true);
-                }, 350);
-              }}
-            />
-          )}
-          
-          {/* Show edit modal when profile is incomplete (for completion) */}
+          {/* Show edit profile modal when profile is incomplete - take user straight to edit */}
           {showEditModal && profileData && (
             <EditProfileModal
               profileData={profileData}
@@ -135,24 +84,33 @@ function AppContent() {
               walletAddress={profileData?.walletAddress || ''}
               onSave={async (data) => {
                 await updateProfile(data);
-                // After saving, check if profile is now complete
-                // The useEffect will handle showing/hiding the completion modal
-                // Close the edit modal after saving
                 setShowEditModal(false);
               }}
-              onClose={() => {
-                setShowEditModal(false);
-                // If profile is still incomplete after closing, show completion modal again
-                if (!isProfileComplete()) {
-                  setShowProfileCompletion(true);
-                }
-              }}
+              onClose={() => setShowEditModal(false)}
               checkUsernameAvailability={checkUsernameAvailability}
             />
           )}
+
+          {/* When profile incomplete and modal closed, show prompt to complete */}
+          {!profileLoading && profileData && !isProfileComplete() && !showEditModal && (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              minHeight: '50vh',
+              gap: '1rem',
+              padding: '1rem'
+            }}>
+              <p style={{ fontSize: '1.2rem' }}>Complete your profile to continue.</p>
+              <button className="btn btn-primary" onClick={() => setShowEditModal(true)}>
+                Complete Profile
+              </button>
+            </div>
+          )}
           
           {/* Show loading state while checking profile */}
-          {profileLoading && !showProfileCompletion && (
+          {profileLoading && (
             <div style={{ 
               display: 'flex', 
               justifyContent: 'center', 
@@ -164,8 +122,8 @@ function AppContent() {
             </div>
           )}
           
-          {/* Fallback: If loading is done but no profileData and no completion modal, show error */}
-          {!profileLoading && !profileData && !showProfileCompletion && (
+          {/* Fallback: If loading is done but no profileData, show error */}
+          {!profileLoading && !profileData && (
             <div style={{ 
               display: 'flex', 
               justifyContent: 'center', 
@@ -191,8 +149,6 @@ function AppContent() {
                   <ProfilePage 
                     walletAddress={profileData?.walletAddress || ''}
                     onDisconnect={handleDisconnect}
-                    onShowProfileCompletion={handleShowProfileCompletion}
-                    onTriggerEdit={handleTriggerEdit}
                   />
                 } 
               />
