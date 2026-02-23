@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
+import { ProfileData, Statistics } from '../types';
 import { useBalances } from '../hooks/useBalances';
-import { useProfile } from '../hooks/useProfile';
 import { useEscrows } from '../hooks/useEscrows';
 import { useTradeHistory } from '../hooks/useTradeHistory';
 import { useNotifications } from '../hooks/useNotifications';
@@ -16,15 +16,23 @@ import EditProfileModal from './EditProfileModal';
 interface ProfilePageProps {
   walletAddress: string;
   onDisconnect: () => void;
+  profileData: ProfileData;
+  statistics: Statistics;
+  updateProfile: (data: Partial<ProfileData>) => Promise<void>;
+  checkUsernameAvailability: (username: string) => Promise<boolean>;
+  profileLoading: boolean;
 }
 
-const ProfilePage: React.FC<ProfilePageProps> = ({ 
+const ProfilePage: React.FC<ProfilePageProps> = ({
   walletAddress,
-  onDisconnect: _onDisconnect
+  onDisconnect: _onDisconnect,
+  profileData,
+  statistics,
+  updateProfile,
+  checkUsernameAvailability,
+  profileLoading
 }) => {
-  // Only load balances when profile is complete (ProfilePage only shows when profile is complete)
   const { balances, solPrice, loading, priceLoading } = useBalances(walletAddress);
-  const { profileData, statistics, updateProfile, checkUsernameAvailability, loading: profileLoading } = useProfile(false, walletAddress);
   const { escrowsData, updateEscrows } = useEscrows(walletAddress);
   const { tradeHistory, activeFilter, setActiveFilter } = useTradeHistory(walletAddress);
   const { contactRequests, outgoingRequests, acceptContactRequest, rejectContactRequest } = useNotifications(walletAddress);
@@ -34,13 +42,17 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
     const escrow = escrowsData.items.find(e => e.id === escrowId);
     if (!escrow) return;
 
+    if (action === 'cancel' && escrow.status === 'ongoing') {
+      window.alert('Your cancellation request has been recorded. The escrow will only be cancelled when the other party also confirms.');
+      return;
+    }
+
     let newStatus: 'waiting' | 'ongoing' | 'completed' | 'cancelled';
     if (action === 'accept') {
       newStatus = 'ongoing';
     } else if (action === 'reject') {
-      // Rejected escrows map to cancelled
       newStatus = 'cancelled';
-    } else { // cancel
+    } else {
       newStatus = 'cancelled';
     }
 
@@ -276,7 +288,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
           />
 
           <div className="escrows-contacts-row">
-                <EscrowsSection escrowsData={escrowsData} updateEscrows={updateEscrows} />
+                <EscrowsSection escrowsData={escrowsData} updateEscrows={updateEscrows} walletAddress={walletAddress} onEscrowAction={handleEscrowAction} />
                 <ContactsSection />
               </div>
             </div>
@@ -287,7 +299,6 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                 escrowsData={escrowsData.items}
                 contactRequests={contactRequests}
                 outgoingRequests={outgoingRequests}
-                onEscrowAction={handleEscrowAction}
                 onContactRequestAction={handleContactRequestAction}
               />
             </div>

@@ -1,16 +1,24 @@
-import React from 'react';
-import { useProfile } from '../hooks/useProfile';
+import React, { useState } from 'react';
+import { ProfileData, Statistics } from '../types';
 import ProfileCard from './ProfileCard';
 import EditProfileModal from './EditProfileModal';
-import { useState } from 'react';
 
 interface AccountPageProps {
   walletAddress: string;
   onDisconnect: () => void;
+  profileData: ProfileData;
+  statistics: Statistics;
+  updateProfile: (data: Partial<ProfileData>) => Promise<void>;
+  checkUsernameAvailability: (username: string) => Promise<boolean>;
 }
 
-const AccountPage: React.FC<AccountPageProps> = ({ walletAddress }) => {
-  const { profileData, statistics, updateProfile, checkUsernameAvailability } = useProfile(false, walletAddress);
+const AccountPage: React.FC<AccountPageProps> = ({
+  walletAddress,
+  profileData,
+  statistics,
+  updateProfile,
+  checkUsernameAvailability
+}) => {
   const [showEditModal, setShowEditModal] = useState(false);
 
   if (!profileData) {

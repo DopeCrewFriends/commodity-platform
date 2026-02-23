@@ -140,9 +140,10 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ onClose }) => {
         <form onSubmit={handleSubmit}>
           {!selectedUser && (
             <div style={{ marginBottom: '0.75rem' }}>
-              <div style={{ position: 'relative', marginBottom: '0.75rem' }}>
+              <div className="contacts-search-container" style={{ position: 'relative', marginBottom: '0.75rem' }}>
                 <input
                   type="text"
+                  className="contacts-search-input"
                   placeholder="Search by username..."
                   value={searchQuery}
                   onChange={(e) => {
@@ -151,19 +152,10 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ onClose }) => {
                     setSearchQuery(cleanValue);
                     setSelectedUser(null);
                   }}
-                  style={{ 
-                    width: '100%', 
-                    padding: '0.5rem', 
-                    paddingRight: '2rem',
-                    fontSize: '0.875rem',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '2.4px',
-                    background: 'var(--bg-light)',
-                    color: 'var(--text-dark)'
-                  }}
+                  style={isSearching ? { paddingRight: '4.5rem' } : undefined}
                 />
                 {isSearching && (
-                  <span style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.875rem', color: 'var(--text-light)' }}>
+                  <span className="search-status" style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', fontSize: 'var(--modal-subtitle-size)', color: 'var(--text-light)' }}>
                     Searching...
                   </span>
                 )}

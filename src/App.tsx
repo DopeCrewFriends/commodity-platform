@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { SOLPriceProvider } from './contexts/SOLPriceContext';
 import { useWallet } from './hooks/useWallet';
 import { useTheme } from './hooks/useTheme';
 import { useAuth } from './hooks/useAuth';
@@ -149,6 +150,11 @@ function AppContent() {
                   <ProfilePage 
                     walletAddress={profileData?.walletAddress || ''}
                     onDisconnect={handleDisconnect}
+                    profileData={profileData!}
+                    statistics={statistics}
+                    updateProfile={updateProfile}
+                    checkUsernameAvailability={checkUsernameAvailability}
+                    profileLoading={profileLoading}
                   />
                 } 
               />
@@ -166,6 +172,10 @@ function AppContent() {
                   <AccountPage 
                     walletAddress={profileData?.walletAddress || ''}
                     onDisconnect={handleDisconnect}
+                    profileData={profileData!}
+                    statistics={statistics}
+                    updateProfile={updateProfile}
+                    checkUsernameAvailability={checkUsernameAvailability}
                   />
                 } 
               />
@@ -196,7 +206,9 @@ function AppContent() {
 function App() {
   return (
     <Router>
-      <AppContent />
+      <SOLPriceProvider>
+        <AppContent />
+      </SOLPriceProvider>
     </Router>
   );
 }

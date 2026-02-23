@@ -24,7 +24,6 @@ const ContactsSection: React.FC = () => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
-              <span className="search-icon">🔍</span>
             </div>
             <div className="contacts-actions">
               <button 

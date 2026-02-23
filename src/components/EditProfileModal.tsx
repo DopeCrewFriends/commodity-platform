@@ -203,12 +203,16 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
         <form id="editProfileForm" className="edit-profile-form" onSubmit={handleSubmit}>
           <div className="profile-section profile-section-editing" id="editingProfileCard">
             <div className="edit-profile-modal-header">
-              <p className="edit-profile-sign-in-note">Complete your profile to sign in.</p>
-              <div className="profile-actions">
-                <button type="submit" className="btn btn-primary" disabled={saving} style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
+              <div className="edit-profile-header-left">
+                <h2 className="edit-profile-title">Edit profile</h2>
+                <p className="edit-profile-sign-in-note">Complete your profile to sign in.</p>
+              </div>
+              <div className="edit-profile-header-right">
+                <button type="submit" className="btn btn-primary edit-profile-save-btn" disabled={saving}>
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
+              <button type="button" className="edit-profile-close-btn" onClick={onClose} aria-label="Close">×</button>
             </div>
             <div className="edit-profile-body">
               <div className="profile-avatar-edit-container">
@@ -231,11 +235,8 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
                         zIndex: 8
                       }}
                     />
-                    <div 
-                      className="avatar-edit-overlay"
-                      style={{ display: 'none' }}
-                    >
-                      <span className="camera-icon">📷</span>
+                    <div className="avatar-edit-overlay" style={{ display: 'none' }}>
+                      <span className="avatar-edit-label">Change</span>
                     </div>
                   </>
                 ) : (
@@ -246,14 +247,11 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
                     >
                       {initials}
                     </div>
-                    <div 
+                    <div
                       className="avatar-edit-overlay"
-                      style={{
-                        display: showOverlay ? 'flex' : 'none',
-                        zIndex: 9
-                      }}
+                      style={{ display: showOverlay ? 'flex' : 'none', zIndex: 9 }}
                     >
-                      <span className="camera-icon">📷</span>
+                      <span className="avatar-edit-label">Change</span>
                     </div>
                   </>
                 )}
@@ -279,9 +277,8 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
             <div className="profile-header profile-header-editing">
               <div className="profile-info">
                 <div className="profile-field-group">
-                  <label className="field-label">Display Name:</label>
+                  <label className="field-label">Display Name</label>
                   <div className="editable-field-wrapper">
-                    <span className="edit-icon">✏️</span>
                     <input 
                       type="text" 
                       className="profile-name-input" 
@@ -294,9 +291,8 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
                   </div>
                 </div>
                 <div className="profile-field-group">
-                  <label className="field-label">Username:</label>
+                  <label className="field-label">Username</label>
                   <div className="editable-field-wrapper">
-                    <span className="edit-icon">✏️</span>
                     <span className="username-prefix">@</span>
                     <input 
                       type="text" 
@@ -322,21 +318,15 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
                       </span>
                     )}
                     {usernameError && (
-                      <div style={{ 
-                        color: 'var(--error-color, #e74c3c)', 
-                        fontSize: '0.75rem', 
-                        marginTop: '0.25rem',
-                        marginLeft: '1.5rem'
-                      }}>
+                      <div className="profile-field-error">
                         {usernameError}
                       </div>
                     )}
                   </div>
                 </div>
                 <div className="profile-field-group">
-                  <label className="field-label">Email:</label>
+                  <label className="field-label">Email</label>
                   <div className="editable-field-wrapper">
-                    <span className="edit-icon">✏️</span>
                     <input 
                       type="email" 
                       className="profile-email-input" 
@@ -349,9 +339,8 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
                   </div>
                 </div>
                 <div className="profile-field-group">
-                  <label className="field-label">Location:</label>
+                  <label className="field-label">Location</label>
                   <div className="editable-field-wrapper">
-                    <span className="edit-icon">✏️</span>
                     <input 
                       type="text" 
                       className="location-text-input" 
@@ -364,9 +353,8 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
                   </div>
                 </div>
                 <div className="profile-field-group">
-                  <label className="field-label">Company:</label>
+                  <label className="field-label">Company</label>
                   <div className="editable-field-wrapper">
-                    <span className="edit-icon">✏️</span>
                     <input 
                       type="text" 
                       className="company-name-input" 
@@ -388,14 +376,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
             </div>
             </div>
             {error && (
-              <div style={{ 
-                color: 'var(--error-color, #e74c3c)', 
-                padding: '0.75rem', 
-                marginTop: '1rem',
-                background: 'var(--error-bg, rgba(231, 76, 60, 0.1))',
-                borderRadius: '4px',
-                textAlign: 'center'
-              }}>
+              <div className="edit-profile-form-error">
                 {error}
               </div>
             )}

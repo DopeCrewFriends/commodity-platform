@@ -211,9 +211,9 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
   return (
     <div className="wallet-modal active" onClick={onClose}>
       <div className="wallet-modal-overlay"></div>
-      <div className="wallet-modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px', padding: '0.875rem' }}>
-        <div className="wallet-modal-header" style={{ marginBottom: '0.75rem' }}>
-          <h2 style={{ fontSize: '1rem', marginBottom: '0.25rem' }}>Create Escrow</h2>
+      <div className="wallet-modal-content modal-wide" onClick={(e) => e.stopPropagation()}>
+        <div className="wallet-modal-header">
+          <h2>Create Escrow</h2>
           {currentStep !== 'details' && (
             <p style={{ fontSize: '0.8rem' }}>
               {currentStep === 'select' ? 'Choose a contact to create an escrow with' : 'Review and confirm escrow details'}
@@ -231,9 +231,7 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
               placeholder="Search contacts by name, email, or wallet address..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ width: '100%' }}
             />
-            <span className="search-icon">🔍</span>
           </div>
 
           <div style={{ 

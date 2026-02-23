@@ -1,4 +1,4 @@
-# SETL - Escrow Platform
+# SETTL - Escrow Platform
 
 A modern, decentralized escrow platform built with React, TypeScript, and Vite.
 

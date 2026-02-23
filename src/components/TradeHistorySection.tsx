@@ -89,7 +89,7 @@ const TradeHistorySection: React.FC<TradeHistorySectionProps> = ({
                   <h4 className="trade-commodity">{trade.commodity}</h4>
                   <div className="trade-meta">
                     <span className="trade-amount">${trade.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    <span className="trade-duration">⏱️ {trade.duration}</span>
+                    <span className="trade-duration">Duration: {trade.duration}</span>
                   </div>
                   <p className="trade-date">{trade.date}</p>
                 </div>

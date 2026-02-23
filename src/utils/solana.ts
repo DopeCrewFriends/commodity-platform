@@ -42,28 +42,27 @@ export async function fetchUSDCBalance(walletAddress: string): Promise<number> {
       body: JSON.stringify({
         jsonrpc: '2.0',
         id: 1,
-        method: 'getParsedTokenAccountsByOwner',
+        method: 'getTokenAccountsByOwner',
         params: [
           walletAddress,
-          {
-            mint: USDC_MINT_ADDRESS
-          },
-          {
-            encoding: 'jsonParsed'
-          }
+          { mint: USDC_MINT_ADDRESS },
+          { encoding: 'jsonParsed', commitment: 'confirmed' }
         ]
       })
     });
-    
+
     const data = await response.json();
-    
+
     if (data.error) {
       throw new Error(data.error.message || 'Failed to fetch USDC balance');
     }
-    
+
     const tokenAccounts = data.result?.value || [];
     if (tokenAccounts.length > 0) {
-      return tokenAccounts[0].account.data.parsed.info.tokenAmount.uiAmount || 0;
+      const account = tokenAccounts[0].account;
+      const parsed = account?.data?.parsed ?? account?.data;
+      const uiAmount = parsed?.info?.tokenAmount?.uiAmount;
+      return typeof uiAmount === 'number' ? uiAmount : (parseFloat(uiAmount) || 0);
     }
     return 0;
   } catch (error) {
@@ -82,28 +81,27 @@ export async function fetchUSDTBalance(walletAddress: string): Promise<number> {
       body: JSON.stringify({
         jsonrpc: '2.0',
         id: 1,
-        method: 'getParsedTokenAccountsByOwner',
+        method: 'getTokenAccountsByOwner',
         params: [
           walletAddress,
-          {
-            mint: USDT_MINT_ADDRESS
-          },
-          {
-            encoding: 'jsonParsed'
-          }
+          { mint: USDT_MINT_ADDRESS },
+          { encoding: 'jsonParsed', commitment: 'confirmed' }
         ]
       })
     });
-    
+
     const data = await response.json();
-    
+
     if (data.error) {
       throw new Error(data.error.message || 'Failed to fetch USDT balance');
     }
-    
+
     const tokenAccounts = data.result?.value || [];
     if (tokenAccounts.length > 0) {
-      return tokenAccounts[0].account.data.parsed.info.tokenAmount.uiAmount || 0;
+      const account = tokenAccounts[0].account;
+      const parsed = account?.data?.parsed ?? account?.data;
+      const uiAmount = parsed?.info?.tokenAmount?.uiAmount;
+      return typeof uiAmount === 'number' ? uiAmount : (parseFloat(uiAmount) || 0);
     }
     return 0;
   } catch (error) {

@@ -58,7 +58,7 @@ const Navigation: React.FC<NavigationProps> = ({
     <nav className="navbar">
       <div className="container">
         <div className="nav-brand" id="navBrand">
-          <h2>SETLL</h2>
+          <h2>SETTL</h2>
         </div>
         {isConnected && (
           <ul className="nav-menu" id="navMenu">
