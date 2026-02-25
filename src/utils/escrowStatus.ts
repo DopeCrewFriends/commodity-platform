@@ -46,7 +46,7 @@ export function isActiveEscrowStatus(status: string): boolean {
 export function getEscrowStatusDisplay(status: EscrowStatus): string {
   switch (status) {
     case 'waiting':
-      return 'Waiting for Confirmation';
+      return 'Waiting for seller';
     case 'ongoing':
       return 'In progress';
     case 'completed':
@@ -73,7 +73,7 @@ export function getCancelledDisplayMessage(escrow: Escrow, currentWallet: string
 
 /**
  * Status label for UI: normal status text, or contextual message when cancelled/waiting.
- * Sellers see "New escrow request" when status is waiting; buyers see "Waiting for Confirmation".
+ * Sellers see "New escrow request" when status is waiting; buyers see "Waiting for seller".
  */
 export function getEscrowStatusDisplayLabel(escrow: Escrow, currentWallet: string): string {
   if (escrow.status === 'cancelled') {

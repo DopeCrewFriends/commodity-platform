@@ -48,39 +48,43 @@ const ContactsSection: React.FC = () => {
               ) : (
                 contacts.map((contact) => {
                   const initials = getInitials(contact.name || '', contact.walletAddress || contact.username || '');
+                  const displayName = contact.name || 'Unknown';
                   return (
-                    <div key={contact.username || contact.walletAddress} className="contact-item">
-                      <div className="contact-avatar">{initials}</div>
-                      <div className="contact-info">
-                        <div className="contact-name">
-                          <span className="contact-name-text">{contact.name || 'Unknown'}</span>
-                          {contact.username && (
-                            <span className="contact-username">@{contact.username}</span>
+                    <article key={contact.username || contact.walletAddress} className="contact-card">
+                      <div className="contact-card__accent" aria-hidden />
+                      <div className="contact-card__inner">
+                        <div className="contact-card__main">
+                          <div className="contact-card__avatar">{initials}</div>
+                          <div className="contact-card__identity">
+                            <span className="contact-card__name">{displayName}</span>
+                            {contact.username && (
+                              <span className="contact-card__username">@{contact.username}</span>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            className="contact-card__remove"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              await removeContact(contact);
+                            }}
+                            title="Remove contact"
+                            aria-label="Remove contact"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        <div className="contact-card__meta">
+                          <span className="contact-card__email">{contact.email || 'No email'}</span>
+                          {contact.company && (
+                            <span className="contact-card__company">{contact.company}</span>
                           )}
                         </div>
-                        <div className="contact-email">{contact.email || 'No email'}</div>
-                        {contact.company && (
-                          <div style={{ fontSize: '0.85em', color: '#666', marginTop: '0.25rem' }}>
-                            {contact.company}
-                          </div>
-                        )}
                         {contact.walletAddress && (
-                        <div className="contact-wallet">{contact.walletAddress}</div>
+                          <div className="contact-card__wallet">{contact.walletAddress}</div>
                         )}
                       </div>
-                      <div className="contact-actions">
-                        <button 
-                          className="contact-action-btn" 
-                          onClick={async (e) => {
-                            e.stopPropagation();
-                            await removeContact(contact);
-                          }}
-                          title="Remove contact"
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    </div>
+                    </article>
                   );
                 })
               )}

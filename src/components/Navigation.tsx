@@ -23,8 +23,24 @@ const Navigation: React.FC<NavigationProps> = ({
 }) => {
   const formattedAddress = formatWalletAddress(walletAddress);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
+
+  // Close mobile menu when route changes (e.g. after clicking a link)
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, [location.pathname]);
+
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (isMenuOpen) {
+      document.body.classList.add('mobile-menu-open');
+    } else {
+      document.body.classList.remove('mobile-menu-open');
+    }
+    return () => document.body.classList.remove('mobile-menu-open');
+  }, [isMenuOpen]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -55,17 +71,18 @@ const Navigation: React.FC<NavigationProps> = ({
   };
 
   return (
-    <nav className="navbar">
+    <nav className={`navbar ${isConnected ? 'nav-connected' : ''}`}>
       <div className="container">
         <div className="nav-brand" id="navBrand">
           <h2>SETTL</h2>
         </div>
         {isConnected && (
-          <ul className="nav-menu" id="navMenu">
+          <ul className={`nav-menu ${isMenuOpen ? 'active' : ''}`} id="navMenu">
             <li>
               <Link 
                 to="/dashboard" 
                 className={`nav-link ${location.pathname === '/dashboard' ? 'nav-active' : ''}`}
+                onClick={() => setIsMenuOpen(false)}
               >
                 Dashboard
               </Link>
@@ -74,6 +91,7 @@ const Navigation: React.FC<NavigationProps> = ({
               <Link 
                 to="/escrows" 
                 className={`nav-link ${location.pathname === '/escrows' ? 'nav-active' : ''}`}
+                onClick={() => setIsMenuOpen(false)}
               >
                 Escrows
               </Link>
@@ -82,16 +100,45 @@ const Navigation: React.FC<NavigationProps> = ({
               <Link 
                 to="/account" 
                 className={`nav-link ${location.pathname === '/account' ? 'nav-active' : ''}`}
+                onClick={() => setIsMenuOpen(false)}
               >
                 Account
               </Link>
+            </li>
+            <li className="nav-menu-theme">
+              <button
+                type="button"
+                className="nav-link nav-link-theme-toggle"
+                onClick={() => toggleTheme()}
+                aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+              >
+                <span className="nav-link-theme-label">
+                  {theme === 'light' ? 'Dark mode' : 'Light mode'}
+                </span>
+                <svg className="theme-icon nav-link-theme-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path 
+                    className="theme-icon-moon" 
+                    style={{ display: theme === 'light' ? 'block' : 'none' }}
+                    d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" 
+                    stroke="currentColor" 
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    fill="currentColor"
+                  />
+                  <g className="theme-icon-sun" style={{ display: theme === 'dark' ? 'block' : 'none' }}>
+                    <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="2" fill="currentColor"/>
+                    <path d="M12 2v2M12 20v2M2 12h2M20 12h2M5.64 5.64l1.41 1.41M16.95 16.95l1.41 1.41M5.64 18.36l1.41-1.41M16.95 7.05l1.41-1.41" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </g>
+                </svg>
+              </button>
             </li>
         </ul>
         )}
         <div className="nav-right">
           {showThemeToggle && (
             <button 
-              className="theme-toggle" 
+              className="theme-toggle theme-toggle-desktop" 
               id="themeToggle" 
               aria-label="Toggle dark mode"
               onClick={toggleTheme}
@@ -164,11 +211,18 @@ const Navigation: React.FC<NavigationProps> = ({
             </button>
           )}
         </div>
-        <button className="nav-toggle" id="navToggle" style={{ display: 'none' }}>
-          <span></span>
-          <span></span>
-          <span></span>
-        </button>
+        {isConnected && (
+          <button 
+            className="nav-toggle" 
+            id="navToggle" 
+            aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        )}
       </div>
     </nav>
   );

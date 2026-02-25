@@ -15,7 +15,7 @@ interface EscrowsSectionProps {
 }
 
 const LIFECYCLE_STEPS: { status: EscrowStatus; label: string }[] = [
-  { status: 'waiting', label: 'Waiting for confirmation' },
+  { status: 'waiting', label: 'Waiting for seller' },
   { status: 'ongoing', label: 'In progress' },
   { status: 'completed', label: 'Completed' },
   { status: 'cancelled', label: 'Cancelled' }
@@ -28,7 +28,7 @@ const ESCROW_FILTER_OPTIONS: { value: EscrowFilterType; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'ongoing', label: 'Ongoing' },
   { value: 'completed', label: 'Completed' },
-  { value: 'waiting', label: 'Waiting for Confirmation' }
+  { value: 'waiting', label: 'Waiting for seller' }
 ];
 
 type SignConfirmAction = 'sign_complete' | 'sign_cancel';
@@ -180,37 +180,40 @@ const EscrowsSection: React.FC<EscrowsSectionProps> = ({ escrowsData, updateEscr
                     key={id}
                     className={`escrow-card ${isExpanded ? 'escrow-card-expanded' : ''}`}
                     data-escrow-id={id}
+                    data-status={escrow.status}
                   >
-                    <button
-                      type="button"
-                      className="escrow-card-header"
-                      onClick={() => toggleExpanded(id)}
-                      aria-expanded={isExpanded}
-                      aria-controls={`escrow-body-${id}`}
-                    >
-                      <span className="escrow-card-summary">{escrow.commodity}</span>
-                      <span className="escrow-card-amount-wrap">
-                        {escrow.paymentMethod && (
-                          <img
-                            src={escrow.paymentMethod === 'USDC' ? '/images/usdc.png' : '/images/usdt logo.png'}
-                            alt=""
-                            className="escrow-card-payment-icon"
-                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                          />
-                        )}
-                        <span className="escrow-card-amount">{amountStr}</span>
-                      </span>
-                      <span className={`escrow-card-status-pill ${escrow.status}`}>
-                        {getEscrowStatusDisplayLabel(escrow, walletAddress)}
-                      </span>
-                      <span className="escrow-card-chevron" aria-hidden>{isExpanded ? '▲' : '▼'}</span>
-                    </button>
+                    <div className="escrow-card__accent" aria-hidden />
+                    <div className="escrow-card__inner">
+                      <button
+                        type="button"
+                        className="escrow-card-header"
+                        onClick={() => toggleExpanded(id)}
+                        aria-expanded={isExpanded}
+                        aria-controls={`escrow-body-${id}`}
+                      >
+                        <span className="escrow-card-summary">{escrow.commodity}</span>
+                        <span className="escrow-card-amount-wrap">
+                          {escrow.paymentMethod && (
+                            <img
+                              src={escrow.paymentMethod === 'USDC' ? '/images/usdc.png' : '/images/usdt logo.png'}
+                              alt=""
+                              className="escrow-card-payment-icon"
+                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                            />
+                          )}
+                          <span className="escrow-card-amount">{amountStr}</span>
+                        </span>
+                        <span className={`escrow-card-status-pill ${escrow.status}`}>
+                          {getEscrowStatusDisplayLabel(escrow, walletAddress)}
+                        </span>
+                        <span className="escrow-card-chevron" aria-hidden>{isExpanded ? '▲' : '▼'}</span>
+                      </button>
 
-                    <div
-                      id={`escrow-body-${id}`}
-                      className="escrow-card-body"
-                      hidden={!isExpanded}
-                    >
+                      <div
+                        id={`escrow-body-${id}`}
+                        className="escrow-card-body"
+                        hidden={!isExpanded}
+                      >
                       <div className="escrow-card-parties">
                         <div className="escrow-party buyer">
                           <div className="escrow-party-avatar">{buyerInitials}</div>
@@ -345,13 +348,14 @@ const EscrowsSection: React.FC<EscrowsSectionProps> = ({ escrowsData, updateEscr
                         })()}
                       </div>
                     </div>
+                    </div>
                   </div>
                 );
               })
             )}
           </div>
         </div>
-      </div>
+        </div>
       </div>
 
       {showCreateModal && walletAddress && (

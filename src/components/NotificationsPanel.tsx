@@ -195,58 +195,56 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
       }
     })();
     const amountStr = `$${escrow.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    const partiesStr = `@${buyerProfile?.username || 'Unknown'} → @${sellerProfile?.username || 'Unknown'}`;
+    const buyerUsername = buyerProfile?.username || 'Unknown';
+    const sellerUsername = sellerProfile?.username || 'Unknown';
     return (
-      <div key={escrow.id} className="notification-item notification-item--escrow">
-        <div className="notification-item__row notification-item__head">
-          <span className={`notification-item__badge escrow-status-badge ${escrow.status}`}>
-            {statusDisplay}
-          </span>
-          <span className="notification-item__meta">{dateStr}</span>
-          <button
-            type="button"
-            className="notification-dismiss-btn"
-            onClick={() => handleDismiss(escrow.id, 'escrow')}
-            aria-label="Dismiss"
-          >
-            ×
-          </button>
+      <article key={escrow.id} className="notification-card notification-card--escrow" data-status={escrow.status}>
+        <div className="notification-card__accent" aria-hidden />
+        <div className="notification-card__inner">
+          <header className="notification-card__header">
+            <span className="notification-card__badge">{statusDisplay}</span>
+            <span className="notification-card__date">{dateStr}</span>
+            <button
+              type="button"
+              className="notification-card__dismiss"
+              onClick={() => handleDismiss(escrow.id, 'escrow')}
+              aria-label="Dismiss"
+            >
+              ×
+            </button>
+          </header>
+          <div className="notification-card__body">
+            <h3 className="notification-card__title" title={escrow.commodity}>{escrow.commodity}</h3>
+            <div className="notification-card__detail-row">
+              <span className="notification-card__amount">
+                {escrow.paymentMethod && (
+                  <img
+                    src={escrow.paymentMethod === 'USDC' ? '/images/usdc.png' : '/images/usdt logo.png'}
+                    alt=""
+                    aria-hidden
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                )}
+                {amountStr}
+              </span>
+              <span className="notification-card__parties">
+                <span className={escrow.buyer === walletAddress ? 'notification-card__you' : ''}>@{buyerUsername}</span>
+                {' → '}
+                <span className={escrow.seller === walletAddress ? 'notification-card__you' : ''}>@{sellerUsername}</span>
+              </span>
+            </div>
+          </div>
+          <footer className="notification-card__actions">
+            <button
+              type="button"
+              className="notification-card__cta btn btn-primary"
+              onClick={() => navigate(`/escrows?open=${encodeURIComponent(escrow.id)}`)}
+            >
+              Manage
+            </button>
+          </footer>
         </div>
-        <div className="notification-item__summary" title={`${escrow.commodity} · ${amountStr} · ${partiesStr}`}>
-          <span className="notification-item__commodity">{escrow.commodity}</span>
-          <span className="notification-item__sep">·</span>
-          <span className="notification-item__amount">
-            {escrow.paymentMethod && (
-              <img
-                src={escrow.paymentMethod === 'USDC' ? '/images/usdc.png' : '/images/usdt logo.png'}
-                alt=""
-                aria-hidden
-                onError={(e) => { e.currentTarget.style.display = 'none'; }}
-              />
-            )}
-            {amountStr}
-          </span>
-          <span className="notification-item__sep">·</span>
-          <span className="notification-item__parties">
-            <span className={escrow.buyer === walletAddress ? 'notification-item__you' : ''}>
-              @{buyerProfile?.username || 'Unknown'}
-            </span>
-            {' → '}
-            <span className={escrow.seller === walletAddress ? 'notification-item__you' : ''}>
-              @{sellerProfile?.username || 'Unknown'}
-            </span>
-          </span>
-        </div>
-        <div className="notification-item__row notification-item__foot">
-          <button
-            type="button"
-            className="notification-item__manage btn btn-primary"
-            onClick={() => navigate(`/escrows?open=${encodeURIComponent(escrow.id)}`)}
-          >
-            Manage
-          </button>
-        </div>
-      </div>
+      </article>
     );
   };
 
@@ -258,61 +256,68 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
 
     const initials = getInitials(profile.name || '', profile.username || '');
     const dateStr = new Date(request.created_at).toLocaleDateString();
-    const title = isOutgoing ? 'Contact Request Sent' : 'Contact Request';
+    const label = isOutgoing ? 'Request sent' : 'Contact request';
     const sub = profile.name || profile.username ? `${profile.name || ''} ${profile.username ? `@${profile.username}` : ''}`.trim() || 'Unknown' : 'Unknown';
 
     return (
-      <div key={request.id} className="notification-item notification-item--contact">
-        <div className="notification-item__row notification-item__head">
-          <span className="notification-item__icon contact-icon" aria-hidden>C</span>
-          <span className="notification-item__title">{title}</span>
-          <span className="notification-item__meta">{dateStr}</span>
-          {request.status?.toLowerCase() !== 'pending' && (
-            <button
-              type="button"
-              className="notification-dismiss-btn"
-              onClick={() => handleDismiss(request.id, 'contact_request')}
-              aria-label="Dismiss"
-            >
-              ×
-            </button>
-          )}
-        </div>
-        <div className="notification-item__summary notification-item__summary--contact">
-          <span className="notification-item__avatar">{initials}</span>
-          <span className="notification-item__contact-sub">{sub}</span>
-        </div>
-        {!isOutgoing && (
-          <div className="notification-item__row notification-item__foot">
-            <button
-              type="button"
-              className="notification-item__action btn btn-primary"
-              onClick={() => onContactRequestAction(request.id, 'accept')}
-            >
-              Accept
-            </button>
-            <button
-              type="button"
-              className="notification-item__action btn btn-secondary"
-              onClick={() => onContactRequestAction(request.id, 'reject')}
-            >
-              Reject
-            </button>
+      <article key={request.id} className="notification-card notification-card--contact">
+        <div className="notification-card__accent" aria-hidden />
+        <div className="notification-card__inner">
+          <header className="notification-card__header">
+            <span className="notification-card__icon" aria-hidden>C</span>
+            <span className="notification-card__label">{label}</span>
+            <span className="notification-card__date">{dateStr}</span>
+            {request.status?.toLowerCase() !== 'pending' && (
+              <button
+                type="button"
+                className="notification-card__dismiss"
+                onClick={() => handleDismiss(request.id, 'contact_request')}
+                aria-label="Dismiss"
+              >
+                ×
+              </button>
+            )}
+          </header>
+          <div className="notification-card__body">
+            <div className="notification-card__person">
+              <span className="notification-card__avatar">{initials}</span>
+              <span className="notification-card__name">{sub}</span>
+            </div>
           </div>
-        )}
-        {isOutgoing && (
-          <div className="notification-item__row notification-item__foot">
-            <span className="notification-item__waiting">Waiting for response</span>
-            <button
-              type="button"
-              className="notification-item__action btn btn-secondary"
-              onClick={() => onContactRequestAction(request.id, 'cancel')}
-            >
-              Cancel request
-            </button>
-          </div>
-        )}
-      </div>
+          <footer className="notification-card__actions">
+            {!isOutgoing && (
+              <>
+                <button
+                  type="button"
+                  className="notification-card__btn notification-card__btn--primary btn btn-primary"
+                  onClick={() => onContactRequestAction(request.id, 'accept')}
+                >
+                  Accept
+                </button>
+                <button
+                  type="button"
+                  className="notification-card__btn btn btn-secondary"
+                  onClick={() => onContactRequestAction(request.id, 'reject')}
+                >
+                  Reject
+                </button>
+              </>
+            )}
+            {isOutgoing && (
+              <>
+                <span className="notification-card__waiting">Waiting for response</span>
+                <button
+                  type="button"
+                  className="notification-card__btn btn btn-secondary"
+                  onClick={() => onContactRequestAction(request.id, 'cancel')}
+                >
+                  Cancel
+                </button>
+              </>
+            )}
+          </footer>
+        </div>
+      </article>
     );
   };
 
