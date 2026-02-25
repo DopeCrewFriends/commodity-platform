@@ -19,7 +19,8 @@ function formatAmountWithCommas(value: string): string {
   const parts = filtered.split('.');
   const intPart = (parts[0] || '0').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   const decPart = parts[1] !== undefined ? parts[1].slice(0, 2) : '';
-  return decPart ? `${intPart}.${decPart}` : intPart;
+  /* Keep the decimal point when user is typing decimals (e.g. "1." or "1.5") */
+  return parts[1] !== undefined ? `${intPart}.${decPart}` : intPart;
 }
 
 /** Parse display value (with commas) to number */

@@ -8,7 +8,7 @@ npm install
 ## Step 2: Set Up Supabase
 
 1. Go to [supabase.com](https://supabase.com) → Create account → New project
-2. Go to **SQL Editor** → Run the SQL from `supabase-setup.sql`
+2. Go to **SQL Editor** → Run the SQL from `supabase-setup-full.sql`
 3. Go to **Settings → API** → Copy:
    - **Project URL** (looks like: `https://xxxxx.supabase.co`)
    - **Publishable key** (starts with `sb_publishable_...`)
@@ -66,6 +66,6 @@ You should see "Detected Serverless Functions" in the terminal when it starts.
 - Verify Supabase credentials in `.env` are correct
 
 ### Database connection issues?
-- Make sure you ran the SQL from `supabase-setup.sql` in Supabase SQL Editor
+- Make sure you ran the SQL from `supabase-setup-full.sql` in Supabase SQL Editor
 - Verify your Supabase project is active (not paused)
 

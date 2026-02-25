@@ -22,6 +22,8 @@
     --card-bg: var(--white);
     --card-padding: 1rem;
     --card-padding-lg: 1.25rem;
+    /* Dashboard panels: padding from panel border to content (main box only) */
+    --panel-padding: 0.9rem;
     --section-gap: 1rem;
     --page-padding-y: 1.5rem;
     --card-border: 1px solid var(--border-color);
@@ -700,7 +702,7 @@ body.wallet-modal-open > *:not(.wallet-modal):not(.profile-completion-modal):not
 
 /* Condensed balances card in row layout */
 .portfolio-dashboard .container .profile-balances-row .balances-header-card {
-    padding: 0.75rem !important;
+    padding: var(--panel-padding) !important;
     display: flex !important;
     flex-direction: column !important;
     height: 100% !important;
@@ -709,7 +711,7 @@ body.wallet-modal-open > *:not(.wallet-modal):not(.profile-completion-modal):not
 
 /* Match notifications card padding to balance card when side-by-side */
 .portfolio-dashboard .notifications-sidebar .notifications-header-card {
-    padding: 0.75rem !important;
+    padding: var(--panel-padding) !important;
 }
 
 .balances-header-card:hover {
@@ -755,8 +757,8 @@ body.wallet-modal-open > *:not(.wallet-modal):not(.profile-completion-modal):not
 }
 
 .portfolio-dashboard .container .profile-balances-row .balances-token-list {
-    margin-top: 0.25rem !important;
-    padding-top: 0.25rem !important;
+    margin-top: 0 !important;
+    padding-top: 0.5rem !important;
 }
 
 .token-list {
@@ -1893,10 +1895,10 @@ body.wallet-modal-open > *:not(.wallet-modal):not(.profile-completion-modal):not
     max-height: calc(100vh - 457px) !important;
 }
 
-/* Contacts and Escrows Header Cards */
+/* Contacts and Escrows Header Cards – use panel padding variable */
 .contacts-header-card,
 .escrows-header-card {
-    padding: var(--card-padding-lg);
+    padding: var(--panel-padding);
     height: calc(100vh - 457px) !important;
     max-height: calc(100vh - 457px) !important;
     overflow: hidden !important;
@@ -1928,8 +1930,8 @@ body.wallet-modal-open > *:not(.wallet-modal):not(.profile-completion-modal):not
     align-items: center;
     gap: 1rem;
     margin-bottom: 0;
-    padding-top: 0.5rem;
-    padding-bottom: 1rem;
+    padding-top: 0;
+    padding-bottom: 0.5rem;
     border-bottom: 1px solid var(--border-color);
     flex-shrink: 0;
     min-height: 2.25rem;
@@ -2114,7 +2116,7 @@ body.wallet-modal-open > *:not(.wallet-modal):not(.profile-completion-modal):not
 .contacts-content,
 .active-escrows-content {
     margin-top: 0;
-    padding-top: 0.65rem;
+    padding-top: 0.5rem;
     flex: 1;
     overflow-y: auto;
     min-height: 0;
@@ -5924,7 +5926,7 @@ section {
 /* Contacts Content */
 .contacts-content {
     min-height: 200px;
-    padding-top: 0.65rem;
+    padding-top: 0.5rem;
 }
 
 .contacts-search-section {
@@ -6333,7 +6335,7 @@ section {
     overflow-y: auto;
     overflow-x: hidden;
     padding-right: 0.2rem;
-    padding-top: 0.65rem;
+    padding-top: 0.5rem;
 }
 
 .notifications-content::-webkit-scrollbar {
@@ -7731,7 +7733,7 @@ section {
     }
     
     .notifications-header-card {
-        padding: 0.75rem !important;
+        padding: var(--panel-padding) !important;
         max-height: 400px !important;
     }
     
@@ -7970,7 +7972,7 @@ section {
     
     /* Balances Section */
     .balances-header-card {
-        padding: 0.75rem !important;
+        padding: var(--panel-padding) !important;
     }
     
     .token-list {
@@ -8006,7 +8008,7 @@ section {
     
     /* Contacts Section */
     .contacts-header-card {
-        padding: 0.75rem !important;
+        padding: var(--panel-padding) !important;
     }
     
     .contacts-actions {
@@ -8065,9 +8067,9 @@ section {
     
     /* Escrows Section */
     .escrows-header-card {
-        padding: 0.75rem !important;
+        padding: var(--panel-padding) !important;
     }
-    
+
     .escrows-actions {
         gap: 0.5rem;
         flex-wrap: wrap;

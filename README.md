@@ -63,7 +63,7 @@ npm install
 ### 2. Set Up Supabase (Free)
 
 1. Go to [supabase.com](https://supabase.com) → Sign up → New project
-2. **SQL Editor** → Copy/paste contents of `supabase-setup.sql` → Run
+2. **SQL Editor** → Copy/paste contents of `supabase-setup-full.sql` → Run
 3. **Settings → API** → Copy:
    - **Project URL**: `https://xxxxx.supabase.co`
    - **Publishable key**: `sb_publishable_...` (use the publishable key, not secret)
@@ -134,7 +134,7 @@ The frontend automatically uses the Vercel deployment URL for API calls. No conf
 │   ├── App.tsx         # Main app component
 │   └── main.tsx        # Entry point
 ├── styles.css          # Global styles
-├── supabase-setup.sql  # Database schema
+├── supabase-setup-full.sql  # Database schema (run in Supabase SQL Editor)
 ├── vite.config.ts      # Vite configuration
 └── package.json        # Dependencies and scripts
 ```
