@@ -21,12 +21,12 @@ const BalancesSection: React.FC<BalancesSectionProps> = ({ balances, solPrice, l
       <div className="balances-header-card" id="balancesHeaderCard">
         <div className="balances-header-content">
           <div className="balances-title-section">
-            <div className="total-balance">
-              <span className="balance-label">Balance</span>
-              <span className="balance-amount" id="totalBalanceValue">
-                {totalUSDDisplay}
-              </span>
-            </div>
+            <h2>Balance</h2>
+          </div>
+          <div className="balances-total-wrap">
+            <span className="balance-amount" id="totalBalanceValue">
+              {totalUSDDisplay}
+            </span>
           </div>
         </div>
         

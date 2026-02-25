@@ -332,11 +332,12 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
           </div>
           <div className="notifications-filter-container">
             <button
-              className="notifications-filter-btn"
+              type="button"
+              className="btn btn-secondary notifications-filter-btn"
               onClick={() => setIsFilterOpen(!isFilterOpen)}
             >
               <span>Filter</span>
-              <span style={{ fontSize: '0.65rem' }}>▼</span>
+              <span className="notifications-filter-chevron">▼</span>
             </button>
             {isFilterOpen && (
               <div className="notifications-filter-dropdown">

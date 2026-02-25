@@ -116,36 +116,36 @@ const EscrowsSection: React.FC<EscrowsSectionProps> = ({ escrowsData, updateEscr
               <button className="btn btn-primary create-escrow-btn" id="createEscrowBtn" onClick={handleCreateEscrow}>
                 Create Escrow
               </button>
+              <div className="escrows-filter-container">
+                <button
+                  type="button"
+                  className="btn btn-secondary escrows-filter-btn"
+                  onClick={() => setIsFilterOpen(!isFilterOpen)}
+                >
+                  <span>Filter</span>
+                  <span className="escrows-filter-chevron">▼</span>
+                </button>
+                {isFilterOpen && (
+                  <div className="escrows-filter-dropdown">
+                    {ESCROW_FILTER_OPTIONS.map(({ value, label }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        className={`filter-option ${activeFilter === value ? 'active' : ''}`}
+                        onClick={() => {
+                          setActiveFilter(value);
+                          setIsFilterOpen(false);
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         <div className="active-escrows-content" id="activeEscrowsContent">
-          <div className="escrows-filter-container">
-            <button
-              type="button"
-              className="escrows-filter-btn"
-              onClick={() => setIsFilterOpen(!isFilterOpen)}
-            >
-              <span>Filter</span>
-              <span style={{ fontSize: '0.65rem' }}>▼</span>
-            </button>
-            {isFilterOpen && (
-              <div className="escrows-filter-dropdown">
-                {ESCROW_FILTER_OPTIONS.map(({ value, label }) => (
-                  <button
-                    key={value}
-                    type="button"
-                    className={`filter-option ${activeFilter === value ? 'active' : ''}`}
-                    onClick={() => {
-                      setActiveFilter(value);
-                      setIsFilterOpen(false);
-                    }}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
           <div className="active-escrows-list" id="activeEscrowsList">
             {activeEscrows.length === 0 ? (
               <div className="no-escrows-message" id="noEscrowsMessage" style={{ display: 'block' }}>
