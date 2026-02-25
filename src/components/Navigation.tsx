@@ -74,7 +74,7 @@ const Navigation: React.FC<NavigationProps> = ({
     <nav className={`navbar ${isConnected ? 'nav-connected' : ''}`}>
       <div className="container">
         <div className="nav-brand" id="navBrand">
-          <h2>SETTL</h2>
+          <h2>Settl</h2>
         </div>
         {isConnected && (
           <ul className={`nav-menu ${isMenuOpen ? 'active' : ''}`} id="navMenu">

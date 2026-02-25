@@ -52,7 +52,7 @@ const WalletModal: React.FC<WalletModalProps> = ({ onConnect, onClose }) => {
       <div className="wallet-modal-content">
         <div className="wallet-modal-header">
           <h2>Connect Your Wallet</h2>
-          <p>Connect your wallet to access the SETTL escrow platform</p>
+          <p>Connect your wallet to access the Settl escrow platform</p>
         </div>
         <div className="wallet-options">
           <button 

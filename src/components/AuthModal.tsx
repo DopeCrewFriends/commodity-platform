@@ -47,7 +47,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
       <div className="wallet-modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="wallet-modal-header">
           <h2>Connect Your Wallet</h2>
-          <p>Connect your wallet to access the SETTL escrow platform</p>
+          <p>Connect your wallet to access the Settl escrow platform</p>
         </div>
         <div className="wallet-options">
           <button 
