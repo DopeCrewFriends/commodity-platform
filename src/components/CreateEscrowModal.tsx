@@ -12,6 +12,21 @@ interface CreateEscrowModalProps {
   updateEscrows: (data: EscrowsData) => void;
 }
 
+/** Format amount for display: add commas, allow max 2 decimal places */
+function formatAmountWithCommas(value: string): string {
+  const filtered = value.replace(/[^\d.]/g, '');
+  if (filtered === '') return '';
+  const parts = filtered.split('.');
+  const intPart = (parts[0] || '0').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const decPart = parts[1] !== undefined ? parts[1].slice(0, 2) : '';
+  return decPart ? `${intPart}.${decPart}` : intPart;
+}
+
+/** Parse display value (with commas) to number */
+function parseAmountNumber(displayValue: string): number {
+  return parseFloat(displayValue.replace(/,/g, '')) || 0;
+}
+
 const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({ 
   onClose, 
   onSelectContact,
@@ -57,14 +72,18 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
     setSelectedFiles(selectedFiles.filter((_, i) => i !== index));
   };
 
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEscrowAmount(formatAmountWithCommas(e.target.value));
+  };
+
   const handleCreateEscrow = () => {
-    if (selectedContact && escrowBasis && escrowAmount) {
+    if (selectedContact && escrowBasis && escrowAmount && parseAmountNumber(escrowAmount) > 0) {
       setCurrentStep('review');
     }
   };
 
   const handleConfirmEscrow = async () => {
-    if (!selectedContact || !escrowBasis || !escrowAmount) return;
+    if (!selectedContact || !escrowBasis || !escrowAmount || parseAmountNumber(escrowAmount) <= 0) return;
 
     // Creator is always the buyer; selected contact is the seller
     const buyer = walletAddress.trim();
@@ -83,7 +102,7 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
         buyer_wallet_address: buyer.trim(),
         seller_wallet_address: seller.trim(),
         commodity: escrowBasis,
-        amount: parseFloat(escrowAmount),
+        amount: parseAmountNumber(escrowAmount),
         status: 'waiting' as const,
         duration_days: 7, // Default duration
         additional_notes: additionalNotes || null,
@@ -116,7 +135,7 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
       buyer,
       seller,
       commodity: escrowBasis,
-      amount: parseFloat(escrowAmount),
+      amount: parseAmountNumber(escrowAmount),
       status: 'waiting',
       startDate: createdAt,
       created_by: walletAddress,
@@ -468,13 +487,12 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
                 </div>
               </div>
               <input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 id="escrowAmount"
                 value={escrowAmount}
-                onChange={(e) => setEscrowAmount(e.target.value)}
+                onChange={handleAmountChange}
                 placeholder="0.00"
-                min="0"
-                step="0.01"
                 style={{
                   width: '100%',
                   padding: '0.5rem 0.75rem',
@@ -612,12 +630,12 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
                 type="button" 
                 className="btn btn-primary" 
                 onClick={handleCreateEscrow}
-                disabled={!escrowBasis || !escrowAmount}
+                disabled={!escrowBasis || !escrowAmount || parseAmountNumber(escrowAmount) <= 0}
                 style={{ 
                   padding: '0.5rem 0.875rem', 
                   fontSize: '0.8rem', 
-                  opacity: (escrowBasis && escrowAmount) ? 1 : 0.5, 
-                  cursor: (escrowBasis && escrowAmount) ? 'pointer' : 'not-allowed' 
+opacity: (escrowBasis && escrowAmount && parseAmountNumber(escrowAmount) > 0) ? 1 : 0.5,
+                  cursor: (escrowBasis && escrowAmount && parseAmountNumber(escrowAmount) > 0) ? 'pointer' : 'not-allowed'
                 }}
               >
                 Review
@@ -664,7 +682,7 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
                 Escrow Amount
               </div>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem 0.75rem', background: 'var(--bg-light)', borderRadius: '2.4px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                ${parseFloat(escrowAmount || '0').toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                ${parseAmountNumber(escrowAmount || '0').toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 {paymentMethod && (
                   <img 
                     src={paymentMethod === 'USDC' ? '/images/usdc.png' : '/images/usdt logo.png'} 
