@@ -155,7 +155,7 @@ export function useEscrows(walletAddress: string | null) {
           updated_at: new Date().toISOString()
         };
 
-        const { data: upsertedData, error } = await supabase
+        const { error } = await supabase
           .from('escrows')
           .upsert(upsertData, {
             onConflict: 'id'

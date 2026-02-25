@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { EscrowsData, Contact, EscrowStatus, Escrow } from '../types';
+import { EscrowsData, Contact, EscrowStatus } from '../types';
 import { getInitials } from '../utils/storage';
-import { getEscrowStatusDisplay, getEscrowStatusDisplayLabel, getEscrowStepDisplayLabel } from '../utils/escrowStatus';
+import { getEscrowStatusDisplayLabel, getEscrowStepDisplayLabel } from '../utils/escrowStatus';
 import { useProfilesCache } from '../hooks/useProfilesCache';
 import CreateEscrowModal from './CreateEscrowModal';
 import { useAuth } from '../hooks/useAuth';
