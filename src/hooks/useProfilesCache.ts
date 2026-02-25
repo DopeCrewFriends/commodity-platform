@@ -66,7 +66,6 @@ export function useProfilesCache(walletAddresses: string[]) {
 
             if (error) {
               if (error.code === 'PGRST205' || error.code === '42P01') {
-                console.log('Profiles table not found');
                 return [];
               }
               throw error;

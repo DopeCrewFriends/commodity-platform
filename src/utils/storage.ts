@@ -63,8 +63,6 @@ export function clearAllUserData(): void {
     // Remove wallet-related keys
     localStorage.removeItem('walletAddress');
     localStorage.removeItem('walletConnected');
-    
-    console.log(`Cleared ${userDataKeys.length} user data entries from localStorage`);
   } catch (error) {
     console.error('Error clearing user data:', error);
     throw error;
@@ -84,8 +82,6 @@ export function clearUserDataByWallet(walletAddress: string): void {
     );
     
     userDataKeys.forEach(key => localStorage.removeItem(key));
-    
-    console.log(`Cleared ${userDataKeys.length} entries for wallet ${walletAddress}`);
   } catch (error) {
     console.error('Error clearing user data:', error);
     throw error;
@@ -115,8 +111,6 @@ export function clearAllEscrows(): void {
         localStorage.removeItem(key);
       }
     });
-    
-    console.log(`Cleared ${escrowKeys.length} escrow entries from localStorage`);
   } catch (error) {
     console.error('Error clearing escrows:', error);
     throw error;

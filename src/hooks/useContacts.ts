@@ -14,6 +14,7 @@ export function useContacts() {
   const [contacts, setContacts] = useState<ProfileData[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const loadingRef = useRef(false);
 
   // Load contacts from Supabase using wallet_address with caching
@@ -113,7 +114,7 @@ export function useContacts() {
     };
 
     loadContacts();
-  }, [walletAddress]);
+  }, [walletAddress, refreshTrigger]);
 
   const sendContactRequest = async (contactUsername: string): Promise<boolean> => {
     if (!walletAddress) return false;
@@ -241,9 +242,15 @@ export function useContacts() {
     if (!walletAddress) return;
     const cacheKey = `${CACHE_KEY_PREFIX}${walletAddress}`;
     contactsCache.delete(cacheKey);
-    // Clear localStorage cache
     saveUserData(walletAddress, 'contacts', []);
   }, [walletAddress]);
+
+  // Refetch contacts (e.g. after accepting a contact request) and update UI
+  const refetchContacts = useCallback(() => {
+    if (!walletAddress) return;
+    invalidateCache();
+    setRefreshTrigger(t => t + 1);
+  }, [walletAddress, invalidateCache]);
 
   const searchUsers = useCallback(async (query: string): Promise<ProfileData[]> => {
     if (!walletAddress || !query || query.trim().length < 2) {
@@ -327,6 +334,7 @@ export function useContacts() {
     searchUsers,
     getTopUsers,
     loading,
-    invalidateCache
+    invalidateCache,
+    refetchContacts
   };
 }

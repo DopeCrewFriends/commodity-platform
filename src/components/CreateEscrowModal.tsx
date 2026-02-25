@@ -70,16 +70,11 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
     const buyer = walletAddress.trim();
     const seller = selectedContact.walletAddress.trim();
 
-    console.log(`📝 Creating escrow:`);
-    console.log(`   Creator (Buyer): ${buyer}`);
-    console.log(`   Seller: ${seller}`);
-
     // Create escrow ID
     const escrowId = `escrow-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const createdAt = new Date().toISOString();
 
     let finalEscrowId = escrowId;
-    let supabaseInsertSuccess = false;
 
     // First, try to create escrow in Supabase (source of truth)
     try {
@@ -97,9 +92,7 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
         created_at: createdAt,
         updated_at: createdAt
       };
-      
-      console.log('📤 Inserting escrow to Supabase:', insertData);
-      
+
       const { data, error: supabaseError } = await supabase
         .from('escrows')
         .insert(insertData)
@@ -107,57 +100,14 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
         .single();
 
       if (supabaseError) {
-        // If table doesn't exist, log and use localStorage fallback
-        if (supabaseError.code === 'PGRST205' || supabaseError.code === '42P01') {
-          console.log('Escrows table not found in Supabase, using localStorage fallback');
-        } else {
-          console.error('❌ Error creating escrow in Supabase:', supabaseError);
-          console.error(`   Error code: ${supabaseError.code}, Message: ${supabaseError.message}`);
-          console.error(`   Error details:`, supabaseError);
+        if (supabaseError.code !== 'PGRST205' && supabaseError.code !== '42P01') {
+          console.error('Error creating escrow in Supabase:', supabaseError);
         }
       } else {
-        console.log('✅ Escrow created successfully in Supabase:', data);
-        supabaseInsertSuccess = true;
-        // Use the ID returned from Supabase (in case it's different)
-        if (data?.id) {
-          finalEscrowId = data.id;
-          console.log('Using Supabase ID:', finalEscrowId);
-        }
-        
-        // Verify the escrow was saved correctly by fetching it back
-        const { data: verifyData, error: verifyError } = await supabase
-          .from('escrows')
-          .select('*')
-          .eq('id', finalEscrowId)
-          .single();
-        
-        if (verifyError) {
-          console.error('❌ Error verifying escrow in Supabase:', verifyError);
-        } else {
-          console.log('✅ Verified escrow exists in Supabase:', verifyData);
-          console.log(`   Status: ${verifyData?.status}, Buyer: ${verifyData?.buyer_wallet_address}, Seller: ${verifyData?.seller_wallet_address}`);
-          
-          // Test if the other user (recipient) can see this escrow
-          const otherUserWallet = (buyer.trim() === walletAddress.trim()) ? seller.trim() : buyer.trim();
-          console.log(`🔍 Testing if other user (${otherUserWallet}) can see this escrow...`);
-          
-          const { data: recipientView, error: recipientError } = await supabase
-            .from('escrows')
-            .select('*')
-            .or(`buyer_wallet_address.eq.${otherUserWallet},seller_wallet_address.eq.${otherUserWallet}`)
-            .eq('id', finalEscrowId)
-            .single();
-          
-          if (recipientError) {
-            console.error(`❌ Other user (${otherUserWallet}) CANNOT see this escrow:`, recipientError);
-            console.error(`   Error code: ${recipientError.code}, Message: ${recipientError.message}`);
-          } else {
-            console.log(`✅ Other user (${otherUserWallet}) CAN see this escrow:`, recipientView);
-          }
-        }
+        if (data?.id) finalEscrowId = data.id;
       }
     } catch (error) {
-      console.error('❌ Exception creating escrow in Supabase:', error);
+      console.error('Error creating escrow in Supabase:', error);
     }
 
     // Create new escrow object with final ID
@@ -181,10 +131,6 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
       items: [...currentEscrowsData.items, newEscrow]
     };
 
-    // Always call updateEscrows to update local state
-    // If Supabase insert succeeded, the upsert will just update the existing record
-    // If Supabase insert failed, the upsert will create it
-    console.log(`📝 Calling updateEscrows (Supabase insert ${supabaseInsertSuccess ? 'succeeded' : 'failed'})`);
     updateEscrows(updatedEscrows);
 
     // IMPORTANT: Do NOT save to other user's localStorage

@@ -4,7 +4,7 @@ import { Escrow } from '../types';
 import { ContactRequest } from '../hooks/useNotifications';
 import { getInitials, loadUserData, saveUserData } from '../utils/storage';
 import { useProfilesCache } from '../hooks/useProfilesCache';
-import { getEscrowStatusDisplay } from '../utils/escrowStatus';
+import { getEscrowStatusDisplayLabel } from '../utils/escrowStatus';
 
 interface Notification {
   id: string;
@@ -18,7 +18,7 @@ interface NotificationsPanelProps {
   escrowsData: Escrow[];
   contactRequests: ContactRequest[];
   outgoingRequests: ContactRequest[];
-  onContactRequestAction: (requestId: string, action: 'accept' | 'reject') => void;
+  onContactRequestAction: (requestId: string, action: 'accept' | 'reject' | 'cancel') => void;
   onDismissNotification?: (notificationId: string, type: 'escrow' | 'contact_request') => void;
 }
 
@@ -78,14 +78,8 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
   // Show all escrows that are waiting (for actions) or recently ongoing/completed (for status updates)
   // Use useMemo to ensure it recalculates when escrowsData changes
   const pendingEscrows = React.useMemo(() => {
-    if (!escrowsData || escrowsData.length === 0) {
-      console.log('📭 NotificationsPanel: No escrows data provided');
-      return [];
-    }
-    
-    console.log(`📭 NotificationsPanel: Processing ${escrowsData.length} escrows for wallet ${walletAddress}`);
-    console.log('📭 Raw escrows:', escrowsData.map(e => ({ id: e.id, status: e.status, buyer: e.buyer, seller: e.seller })));
-    
+    if (!escrowsData || escrowsData.length === 0) return [];
+
     const filtered = escrowsData.filter(
       escrow => {
         const status = escrow.status;
@@ -106,19 +100,10 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
         }
         // Show waiting escrows and recently ongoing/completed ones (within last 7 days)
         const isRecentDate = isRecent && escrowDate.getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000;
-        const shouldShow = (isWaiting || isRecentDate) && isUserInvolved;
-        
-        if (isWaiting) {
-          console.log(`📭 Escrow ${escrow.id} with status 'waiting' - ${shouldShow ? 'SHOWING' : 'HIDDEN'} (user involved: ${isUserInvolved})`);
-        }
-        
-        return shouldShow;
+        return (isWaiting || isRecentDate) && isUserInvolved;
       }
     );
-    
-    console.log(`📭 NotificationsPanel: Filtered to ${filtered.length} pending escrows`);
-    console.log('📭 Pending escrows:', filtered.map(e => ({ id: e.id, status: e.status })));
-    
+
     return filtered;
   }, [escrowsData, walletAddress]);
 
@@ -198,7 +183,7 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
   }, [pendingEscrows, contactRequests, outgoingRequests, dismissedNotifications, filter]);
 
   const renderEscrowNotification = (escrow: Escrow) => {
-    const statusDisplay = getEscrowStatusDisplay(escrow.status);
+    const statusDisplay = getEscrowStatusDisplayLabel(escrow, walletAddress);
     const buyerProfile = profiles[escrow.buyer];
     const sellerProfile = profiles[escrow.seller];
     const dateStr = (() => {
@@ -318,6 +303,13 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
         {isOutgoing && (
           <div className="notification-item__row notification-item__foot">
             <span className="notification-item__waiting">Waiting for response</span>
+            <button
+              type="button"
+              className="notification-item__action btn btn-secondary"
+              onClick={() => onContactRequestAction(request.id, 'cancel')}
+            >
+              Cancel request
+            </button>
           </div>
         )}
       </div>

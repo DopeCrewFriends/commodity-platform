@@ -24,13 +24,6 @@ function AppContent() {
   // Use same wallet as rest of app so profile loads right after connect (single source of truth)
   const { profileData, statistics, updateProfile, checkUsernameAvailability, isProfileComplete, loading: profileLoading } = useProfile(false, walletAddress);
 
-  useEffect(() => {
-    // Force dark theme on landing page
-    if (!isConnected) {
-      document.documentElement.setAttribute('data-theme', 'dark');
-    }
-  }, [isConnected]);
-
   // When profile is incomplete, open the edit profile modal directly
   useEffect(() => {
     if (!isConnected || !walletAddress || profileLoading || !profileData) {
@@ -72,7 +65,7 @@ function AppContent() {
         onConnectClick={() => setShowWalletModal(true)}
         theme={theme}
         toggleTheme={toggleTheme}
-        showThemeToggle={isConnected}
+        showThemeToggle={true}
       />
       
       {isConnected && walletAddress ? (

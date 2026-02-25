@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ProfileData } from '../types';
 import { supabase } from '../utils/supabase';
 
@@ -17,10 +17,16 @@ export function useNotifications(walletAddress: string | null) {
   const [contactRequests, setContactRequests] = useState<ContactRequest[]>([]);
   const [outgoingRequests, setOutgoingRequests] = useState<ContactRequest[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const refetchContactRequests = useCallback(() => {
+    setRefreshTrigger(t => t + 1);
+  }, []);
 
   useEffect(() => {
     if (!walletAddress) {
       setContactRequests([]);
+      setOutgoingRequests([]);
       return;
     }
 
@@ -132,7 +138,7 @@ export function useNotifications(walletAddress: string | null) {
     };
 
     loadContactRequests();
-  }, [walletAddress]);
+  }, [walletAddress, refreshTrigger]);
 
   const acceptContactRequest = async (requestId: string): Promise<boolean> => {
     if (!walletAddress) return false;
@@ -391,12 +397,36 @@ export function useNotifications(walletAddress: string | null) {
     }
   };
 
+  /** Cancel a pending request that the current user sent (removes it so it no longer appears in outgoing). */
+  const cancelContactRequest = async (requestId: string): Promise<boolean> => {
+    if (!walletAddress) return false;
+
+    try {
+      const { error } = await supabase
+        .from('contact_requests')
+        .delete()
+        .eq('id', requestId)
+        .eq('from_wallet_address', walletAddress)
+        .eq('status', 'pending');
+
+      if (error) throw error;
+
+      setRefreshTrigger(t => t + 1);
+      return true;
+    } catch (error) {
+      console.error('Error cancelling contact request:', error);
+      return false;
+    }
+  };
+
   return {
     contactRequests, // Incoming requests
     outgoingRequests, // Outgoing requests
     loading,
     acceptContactRequest,
-    rejectContactRequest
+    rejectContactRequest,
+    cancelContactRequest,
+    refetchContactRequests
   };
 }
 

@@ -31,6 +31,9 @@ export interface Escrow {
   startDate: string;
   created_by?: string; // Wallet address of user who created the escrow
   paymentMethod?: 'USDT' | 'USDC'; // Payment method specified by buyer
+  cancelled_by?: string; // Wallet address of user who cancelled/rejected (seller = rejected, buyer = cancelled)
+  complete_signed_by?: string[]; // Wallet addresses of parties who have signed to complete (2/2 = completed)
+  cancel_signed_by?: string[];   // Wallet addresses of parties who have signed to cancel (2/2 = cancelled)
 }
 
 export interface EscrowsData {

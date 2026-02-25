@@ -1,4 +1,4 @@
-import { EscrowStatus } from '../types';
+import { EscrowStatus, Escrow } from '../types';
 
 /**
  * Maps old status values to new standardized status values
@@ -48,7 +48,7 @@ export function getEscrowStatusDisplay(status: EscrowStatus): string {
     case 'waiting':
       return 'Waiting for Confirmation';
     case 'ongoing':
-      return 'Ongoing';
+      return 'In progress';
     case 'completed':
       return 'Completed';
     case 'cancelled':
@@ -56,5 +56,45 @@ export function getEscrowStatusDisplay(status: EscrowStatus): string {
     default:
       return status;
   }
+}
+
+/**
+ * For cancelled escrows, returns context-specific message for the current user.
+ */
+export function getCancelledDisplayMessage(escrow: Escrow, currentWallet: string): string {
+  const me = currentWallet.trim();
+  const seller = escrow.seller.trim();
+  const cancelledBy = escrow.cancelled_by?.trim();
+  if (cancelledBy === seller) {
+    return me === seller ? 'You rejected this escrow' : 'Rejected by seller';
+  }
+  return 'Cancelled';
+}
+
+/**
+ * Status label for UI: normal status text, or contextual message when cancelled/waiting.
+ * Sellers see "New escrow request" when status is waiting; buyers see "Waiting for Confirmation".
+ */
+export function getEscrowStatusDisplayLabel(escrow: Escrow, currentWallet: string): string {
+  if (escrow.status === 'cancelled') {
+    return getCancelledDisplayMessage(escrow, currentWallet);
+  }
+  if (escrow.status === 'waiting' && escrow.seller.trim() === currentWallet.trim()) {
+    return 'New escrow request';
+  }
+  return getEscrowStatusDisplay(escrow.status);
+}
+
+/**
+ * Label for a timeline step in context (e.g. seller sees "New escrow request" for waiting step).
+ */
+export function getEscrowStepDisplayLabel(step: EscrowStatus, escrow: Escrow, currentWallet: string): string {
+  if (step === 'waiting' && escrow.seller.trim() === currentWallet.trim()) {
+    return 'New escrow request';
+  }
+  if (step === 'cancelled' && escrow.status === 'cancelled') {
+    return getCancelledDisplayMessage(escrow, currentWallet);
+  }
+  return getEscrowStatusDisplay(step);
 }
 

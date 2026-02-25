@@ -21,15 +21,9 @@ export function useEscrows(walletAddress: string | null) {
     const fetchEscrows = async () => {
       setLoading(true);
       try {
-        console.log(`🔍 Fetching escrows for wallet: ${walletAddress}`);
-        console.log(`   Wallet address length: ${walletAddress.length}, trimmed: "${walletAddress.trim()}"`);
-        
-        // Fetch escrows from Supabase where user is buyer or seller
-        // Use exact match with trimmed addresses to avoid whitespace issues
         const trimmedWallet = walletAddress.trim();
         const queryString = `buyer_wallet_address.eq.${trimmedWallet},seller_wallet_address.eq.${trimmedWallet}`;
-        console.log(`   Query string: ${queryString}`);
-        
+
         const { data: supabaseEscrows, error } = await supabase
           .from('escrows')
           .select('*')
@@ -37,9 +31,7 @@ export function useEscrows(walletAddress: string | null) {
           .order('created_at', { ascending: false });
 
         if (error) {
-          // If table doesn't exist, fall back to localStorage
           if (error.code === 'PGRST205' || error.code === '42P01') {
-            console.log('Escrows table not found, using localStorage');
             loadFromLocalStorage();
             return;
           }
@@ -49,20 +41,8 @@ export function useEscrows(walletAddress: string | null) {
         }
 
         if (supabaseEscrows && supabaseEscrows.length > 0) {
-          console.log(`✅ Fetched ${supabaseEscrows.length} escrows from Supabase`);
-          console.log('Raw escrows from Supabase:', supabaseEscrows.map((e: any) => ({ id: e.id, status: e.status, buyer: e.buyer_wallet_address, seller: e.seller_wallet_address })));
-          
-          // Convert Supabase format to local Escrow format and normalize statuses
           const escrows: Escrow[] = supabaseEscrows
-            .filter((escrow: any) => {
-              const isActive = isActiveEscrowStatus(escrow.status);
-              if (!isActive) {
-                console.log(`❌ Filtered out escrow ${escrow.id} with status: ${escrow.status}`);
-              } else {
-                console.log(`✅ Keeping escrow ${escrow.id} with status: ${escrow.status} (normalized to: ${normalizeEscrowStatus(escrow.status)})`);
-              }
-              return isActive;
-            }) // Filter out rejected only
+            .filter((escrow: any) => isActiveEscrowStatus(escrow.status))
             .map((escrow: any) => {
               const normalizedStatus = normalizeEscrowStatus(escrow.status);
               return {
@@ -71,15 +51,16 @@ export function useEscrows(walletAddress: string | null) {
                 seller: escrow.seller_wallet_address?.trim() || escrow.seller_wallet_address,
                 commodity: escrow.commodity,
                 amount: parseFloat(escrow.amount),
-                status: normalizedStatus, // Normalize to new status format
+                status: normalizedStatus,
                 startDate: escrow.created_at || new Date().toISOString(),
                 created_by: escrow.created_by?.trim() || escrow.created_by,
-                paymentMethod: escrow.payment_method || 'USDC' // Default to USDC if not set
+                paymentMethod: escrow.payment_method || 'USDC',
+                cancelled_by: escrow.cancelled_by?.trim() || escrow.cancelled_by,
+                complete_signed_by: Array.isArray(escrow.complete_signed_by) ? escrow.complete_signed_by.map((w: string) => w?.trim()).filter(Boolean) : [],
+                cancel_signed_by: Array.isArray(escrow.cancel_signed_by) ? escrow.cancel_signed_by.map((w: string) => w?.trim()).filter(Boolean) : []
               };
             });
 
-          console.log(`✅ Processed ${escrows.length} active escrows (after filtering)`);
-          console.log('Final escrows:', escrows.map(e => ({ id: e.id, status: e.status })));
           const totalAmount = escrows.reduce((sum, escrow) => sum + escrow.amount, 0);
           const escrowsData: EscrowsData = {
             totalAmount,
@@ -87,12 +68,12 @@ export function useEscrows(walletAddress: string | null) {
           };
 
           setEscrowsData(escrowsData);
-          // Also save to localStorage as cache
           saveUserData(walletAddress, 'escrows', escrowsData);
         } else {
-          console.log('⚠️ No escrows found in Supabase, trying localStorage fallback');
-          // No escrows in Supabase, try localStorage as fallback
-          loadFromLocalStorage();
+          // Supabase returned empty: use empty state and overwrite cache (don't use stale localStorage)
+          const emptyData: EscrowsData = { totalAmount: 0, items: [] };
+          setEscrowsData(emptyData);
+          saveUserData(walletAddress, 'escrows', emptyData);
         }
       } catch (error) {
         console.error('Error fetching escrows:', error);
@@ -153,18 +134,11 @@ export function useEscrows(walletAddress: string | null) {
 
   const updateEscrows = async (data: EscrowsData) => {
     setEscrowsData(data);
-    
     if (!walletAddress) return;
 
-    console.log(`📝 updateEscrows called with ${data.items.length} escrows`);
-    console.log('Escrows to sync:', data.items.map(e => ({ id: e.id, status: e.status, buyer: e.buyer, seller: e.seller })));
-
-    // Save to localStorage as cache
     saveUserData(walletAddress, 'escrows', data);
 
-    // Sync to Supabase
     try {
-      // For each escrow, update or insert in Supabase
       for (const escrow of data.items) {
         const upsertData = {
           id: escrow.id,
@@ -172,17 +146,15 @@ export function useEscrows(walletAddress: string | null) {
           seller_wallet_address: escrow.seller.trim(),
           commodity: escrow.commodity,
           amount: escrow.amount,
-          status: escrow.status, // Ensure status is saved correctly
-          duration_days: 7, // Default, can be updated if needed
+          status: escrow.status,
+          duration_days: 7,
           additional_notes: null,
           payment_method: escrow.paymentMethod || 'USDC',
           created_by: (escrow.created_by || walletAddress).trim(),
           created_at: escrow.startDate || new Date().toISOString(),
           updated_at: new Date().toISOString()
         };
-        
-        console.log(`🔄 Upserting escrow ${escrow.id} with status: ${escrow.status}`, upsertData);
-        
+
         const { data: upsertedData, error } = await supabase
           .from('escrows')
           .upsert(upsertData, {
@@ -191,35 +163,12 @@ export function useEscrows(walletAddress: string | null) {
           .select()
           .single();
 
-        if (error) {
-          if (error.code === 'PGRST205' || error.code === '42P01') {
-            console.log(`⚠️ Escrows table not found, skipping sync for ${escrow.id}`);
-          } else {
-            console.error(`❌ Error syncing escrow ${escrow.id} to Supabase:`, error);
-            console.error(`   Error code: ${error.code}, Message: ${error.message}`);
-            console.error(`   Error details:`, error);
-            // Try to fetch the escrow to see if it exists
-            const { data: existingEscrow } = await supabase
-              .from('escrows')
-              .select('*')
-              .eq('id', escrow.id)
-              .single();
-            if (existingEscrow) {
-              console.log(`   ⚠️ Escrow ${escrow.id} exists in Supabase with status: ${existingEscrow.status}`);
-            }
-          }
-        } else if (upsertedData) {
-          console.log(`✅ Successfully synced escrow ${escrow.id} to Supabase with status: ${upsertedData.status}`);
-          // Verify the status was saved correctly
-          if (upsertedData.status !== escrow.status) {
-            console.warn(`   ⚠️ Status mismatch! Expected: ${escrow.status}, Got: ${upsertedData.status}`);
-          }
-        } else {
-          console.warn(`⚠️ Upsert returned no data for escrow ${escrow.id}`);
+        if (error && error.code !== 'PGRST205' && error.code !== '42P01') {
+          console.error('Error syncing escrow to Supabase:', error);
         }
       }
     } catch (error) {
-      console.error('❌ Error syncing escrows to Supabase:', error);
+      console.error('Error syncing escrows to Supabase:', error);
     }
   };
 

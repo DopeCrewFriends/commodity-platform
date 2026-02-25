@@ -21,21 +21,48 @@ const EscrowsPage: React.FC<EscrowsPageProps> = ({ walletAddress }) => {
 
   const { escrowsData, updateEscrows } = useEscrows(walletAddress);
 
-  const handleEscrowAction = async (escrowId: string, action: 'accept' | 'reject' | 'cancel') => {
+  const handleEscrowAction = async (escrowId: string, action: 'accept' | 'reject' | 'cancel' | 'complete' | 'sign_complete' | 'sign_cancel') => {
     const escrow = escrowsData.items.find(e => e.id === escrowId);
     if (!escrow) return;
 
-    if (action === 'cancel' && escrow.status === 'ongoing') {
-      window.alert('Your cancellation request has been recorded. The escrow will only be cancelled when the other party also confirms.');
-      return;
+    const me = walletAddress.trim();
+    let newStatus: EscrowStatus = escrow.status;
+    let cancelledBy: string | undefined;
+    let completeSignedBy: string[] = escrow.complete_signed_by ?? [];
+    let cancelSignedBy: string[] = escrow.cancel_signed_by ?? [];
+
+    if (action === 'accept') {
+      newStatus = 'ongoing';
+    } else if (action === 'reject') {
+      newStatus = 'cancelled';
+      cancelledBy = me;
+    } else if (action === 'cancel' && escrow.status === 'waiting') {
+      newStatus = 'cancelled';
+      cancelledBy = me;
+    } else if (action === 'sign_complete') {
+      if (!completeSignedBy.includes(me)) completeSignedBy = [...completeSignedBy, me];
+      if (completeSignedBy.length >= 2) newStatus = 'completed';
+    } else if (action === 'sign_cancel') {
+      if (!cancelSignedBy.includes(me)) cancelSignedBy = [...cancelSignedBy, me];
+      if (cancelSignedBy.length >= 2) newStatus = 'cancelled';
+    } else if (action === 'complete') {
+      newStatus = 'completed';
     }
 
-    const newStatus: EscrowStatus = action === 'accept' ? 'ongoing' : 'cancelled';
+    const updatePayload: Record<string, unknown> = {
+      status: newStatus,
+      updated_at: new Date().toISOString()
+    };
+    if (cancelledBy !== undefined) updatePayload.cancelled_by = cancelledBy;
+    if (action === 'sign_complete' || action === 'sign_cancel') {
+      updatePayload.complete_signed_by = completeSignedBy;
+      updatePayload.cancel_signed_by = cancelSignedBy;
+    }
 
     try {
       const { error } = await supabase
         .from('escrows')
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .update(updatePayload)
         .eq('id', escrowId);
 
       if (error && error.code !== 'PGRST205' && error.code !== '42P01') {
@@ -46,7 +73,7 @@ const EscrowsPage: React.FC<EscrowsPageProps> = ({ walletAddress }) => {
     }
 
     const updatedEscrows = escrowsData.items.map(e =>
-      e.id === escrowId ? { ...e, status: newStatus } as typeof e : e
+      e.id !== escrowId ? e : { ...e, status: newStatus, cancelled_by: cancelledBy ?? e.cancelled_by, complete_signed_by: completeSignedBy, cancel_signed_by: cancelSignedBy }
     );
     const totalAmount = updatedEscrows
       .filter(e => e.status === 'ongoing' || e.status === 'waiting')

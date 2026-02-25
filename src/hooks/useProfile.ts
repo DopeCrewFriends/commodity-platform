@@ -60,7 +60,6 @@ export function useProfile(skipLoadUntilComplete: boolean = false, walletAddress
       if (!mounted) return;
 
       if (skipLoadUntilComplete) {
-        console.log('Skipping profile load - waiting for user to complete profile first');
         if (mounted) {
           setProfileData(emptyProfileForWallet);
           setLoading(false);
@@ -76,8 +75,6 @@ export function useProfile(skipLoadUntilComplete: boolean = false, walletAddress
         setLoading(false);
       }
 
-      console.log('loadProfile called for wallet:', walletAddress);
-
       try {
         // Check / load existing profile from Supabase
         const { data, error } = await supabase
@@ -88,8 +85,6 @@ export function useProfile(skipLoadUntilComplete: boolean = false, walletAddress
 
         if (error) {
           if (error.code === 'PGRST116') {
-            // Profile doesn't exist yet - this is normal for new users
-            console.log('Profile not found - initializing new profile for first-time user');
             if (mounted) {
               setProfileData({
                 name: '',
@@ -145,8 +140,6 @@ export function useProfile(skipLoadUntilComplete: boolean = false, walletAddress
       if (savedStats && mounted) {
         setStatistics(savedStats);
       }
-      
-      console.log('loadProfile completed');
     };
 
     loadProfile();

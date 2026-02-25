@@ -3,6 +3,7 @@ import { ProfileData, Statistics } from '../types';
 import { useBalances } from '../hooks/useBalances';
 import { useEscrows } from '../hooks/useEscrows';
 import { useTradeHistory } from '../hooks/useTradeHistory';
+import { useContacts } from '../hooks/useContacts';
 import { useNotifications } from '../hooks/useNotifications';
 import { supabase } from '../utils/supabase';
 import ProfileCard from './ProfileCard';
@@ -35,78 +36,88 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
   const { balances, solPrice, loading, priceLoading } = useBalances(walletAddress);
   const { escrowsData, updateEscrows } = useEscrows(walletAddress);
   const { tradeHistory, activeFilter, setActiveFilter } = useTradeHistory(walletAddress);
-  const { contactRequests, outgoingRequests, acceptContactRequest, rejectContactRequest } = useNotifications(walletAddress);
+  const { contactRequests, outgoingRequests, acceptContactRequest, rejectContactRequest, cancelContactRequest } = useNotifications(walletAddress);
+  const { refetchContacts } = useContacts();
   const [showEditModal, setShowEditModal] = useState(false);
 
-  const handleEscrowAction = async (escrowId: string, action: 'accept' | 'reject' | 'cancel') => {
+  const handleEscrowAction = async (escrowId: string, action: 'accept' | 'reject' | 'cancel' | 'complete' | 'sign_complete' | 'sign_cancel') => {
     const escrow = escrowsData.items.find(e => e.id === escrowId);
     if (!escrow) return;
 
-    if (action === 'cancel' && escrow.status === 'ongoing') {
-      window.alert('Your cancellation request has been recorded. The escrow will only be cancelled when the other party also confirms.');
-      return;
-    }
+    const me = walletAddress.trim();
+    let newStatus: 'waiting' | 'ongoing' | 'completed' | 'cancelled' = escrow.status;
+    let cancelledBy: string | undefined;
+    let completeSignedBy: string[] = escrow.complete_signed_by ?? [];
+    let cancelSignedBy: string[] = escrow.cancel_signed_by ?? [];
 
-    let newStatus: 'waiting' | 'ongoing' | 'completed' | 'cancelled';
     if (action === 'accept') {
       newStatus = 'ongoing';
     } else if (action === 'reject') {
       newStatus = 'cancelled';
-    } else {
+      cancelledBy = me;
+    } else if (action === 'cancel' && escrow.status === 'waiting') {
       newStatus = 'cancelled';
+      cancelledBy = me;
+    } else if (action === 'sign_complete') {
+      if (!completeSignedBy.includes(me)) completeSignedBy = [...completeSignedBy, me];
+      if (completeSignedBy.length >= 2) newStatus = 'completed';
+    } else if (action === 'sign_cancel') {
+      if (!cancelSignedBy.includes(me)) cancelSignedBy = [...cancelSignedBy, me];
+      if (cancelSignedBy.length >= 2) newStatus = 'cancelled';
+    } else if (action === 'complete') {
+      newStatus = 'completed';
     }
 
-    // Update escrow status in Supabase first (source of truth)
+    const updatePayload: Record<string, unknown> = {
+      status: newStatus,
+      updated_at: new Date().toISOString()
+    };
+    if (cancelledBy !== undefined) updatePayload.cancelled_by = cancelledBy;
+    if (action === 'sign_complete' || action === 'sign_cancel') {
+      updatePayload.complete_signed_by = completeSignedBy;
+      updatePayload.cancel_signed_by = cancelSignedBy;
+    }
+
     try {
       const { error } = await supabase
         .from('escrows')
-        .update({ 
-          status: newStatus,
-          updated_at: new Date().toISOString()
-        })
+        .update(updatePayload)
         .eq('id', escrowId);
 
-      if (error) {
-        // If table doesn't exist, fall back to localStorage
-        if (error.code === 'PGRST205' || error.code === '42P01') {
-          console.log('Escrows table not found, using localStorage');
-        } else {
-          console.warn('Error updating escrow in Supabase:', error);
-        }
+      if (error && error.code !== 'PGRST205' && error.code !== '42P01') {
+        console.warn('Error updating escrow in Supabase:', error);
       }
-    } catch (error) {
-      console.log('Error updating escrow in Supabase:', error);
+    } catch {
+      // Supabase may be unavailable; local state still updated
     }
 
-    // Update escrow status locally
     const updatedEscrows = escrowsData.items.map(e => {
-      if (e.id === escrowId) {
-        return {
-          ...e,
-          status: newStatus
-        };
-      }
-      return e;
+      if (e.id !== escrowId) return e;
+      return {
+        ...e,
+        status: newStatus,
+        cancelled_by: cancelledBy ?? e.cancelled_by,
+        complete_signed_by: completeSignedBy,
+        cancel_signed_by: cancelSignedBy
+      };
     });
 
     const totalAmount = updatedEscrows
       .filter(e => e.status === 'ongoing' || e.status === 'waiting')
       .reduce((sum, e) => sum + e.amount, 0);
 
-    // Update current user's escrows (this will also sync to Supabase via updateEscrows)
-    updateEscrows({
-      totalAmount,
-      items: updatedEscrows
-    });
+    updateEscrows({ totalAmount, items: updatedEscrows });
   };
 
-  const handleContactRequestAction = async (requestId: string, action: 'accept' | 'reject') => {
+  const handleContactRequestAction = async (requestId: string, action: 'accept' | 'reject' | 'cancel') => {
     if (action === 'accept') {
-      await acceptContactRequest(requestId);
-    } else {
+      const ok = await acceptContactRequest(requestId);
+      if (ok) refetchContacts();
+    } else if (action === 'reject') {
       await rejectContactRequest(requestId);
+    } else if (action === 'cancel') {
+      await cancelContactRequest(requestId);
     }
-    // The notifications will reload automatically via the hook
   };
 
   if (profileLoading || !profileData) {
