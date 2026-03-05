@@ -216,13 +216,27 @@ export function useContacts() {
         throw new Error('Contact wallet address not found');
       }
 
-      const { error } = await supabase
+      // Remove from contacts table (current user's contact list)
+      const { error: deleteContactError } = await supabase
         .from('contacts')
         .delete()
         .eq('user_wallet_address', walletAddress)
         .eq('contact_wallet_address', contactWalletAddress);
 
-      if (error) throw error;
+      if (deleteContactError) throw deleteContactError;
+
+      // Also remove the accepted contact_request between these two users so they can
+      // add each other again without "Contact already exists"
+      await supabase
+        .from('contact_requests')
+        .delete()
+        .eq('from_wallet_address', walletAddress)
+        .eq('to_wallet_address', contactWalletAddress);
+      await supabase
+        .from('contact_requests')
+        .delete()
+        .eq('from_wallet_address', contactWalletAddress)
+        .eq('to_wallet_address', walletAddress);
 
       // Update local state and cache immediately
       const updatedContacts = contacts.filter(c => c.walletAddress !== contactWalletAddress);
