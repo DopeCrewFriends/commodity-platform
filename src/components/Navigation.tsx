@@ -73,9 +73,10 @@ const Navigation: React.FC<NavigationProps> = ({
   return (
     <nav className={`navbar ${isConnected ? 'nav-connected' : ''}`}>
       <div className="container">
-        <div className="nav-brand" id="navBrand">
+        <Link to="/" className="nav-brand" id="navBrand">
           <h2>Settl</h2>
-        </div>
+          <span className="nav-brand__tagline">Escrow platform</span>
+        </Link>
         {isConnected && (
           <ul className={`nav-menu ${isMenuOpen ? 'active' : ''}`} id="navMenu">
             <li>
@@ -89,11 +90,11 @@ const Navigation: React.FC<NavigationProps> = ({
             </li>
             <li>
               <Link 
-                to="/escrows" 
-                className={`nav-link ${location.pathname === '/escrows' ? 'nav-active' : ''}`}
+                to="/marketplace" 
+                className={`nav-link ${location.pathname === '/marketplace' ? 'nav-active' : ''}`}
                 onClick={() => setIsMenuOpen(false)}
               >
-                Escrows
+                Marketplace
               </Link>
             </li>
             <li>

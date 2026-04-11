@@ -4,6 +4,7 @@ import { EscrowsData, Contact, EscrowStatus, Escrow } from '../types';
 import { solscanTxUrl } from '../utils/solscan';
 import { getInitials } from '../utils/storage';
 import { getEscrowStatusDisplayLabel, getEscrowStepDisplayLabel } from '../utils/escrowStatus';
+import { isEscrowActiveForPanel } from '../utils/escrowTradeHistory';
 import { useProfilesCache } from '../hooks/useProfilesCache';
 import CreateEscrowModal from './CreateEscrowModal';
 import { useAuth } from '../hooks/useAuth';
@@ -94,12 +95,11 @@ function escrowTimelineTxBlock(step: EscrowStatus, escrow: Escrow, inPath: boole
   return null;
 }
 
-type EscrowFilterType = 'all' | 'ongoing' | 'waiting' | 'completed';
+type EscrowFilterType = 'all' | 'ongoing' | 'waiting';
 
 const ESCROW_FILTER_OPTIONS: { value: EscrowFilterType; label: string }[] = [
-  { value: 'all', label: 'All' },
+  { value: 'all', label: 'All active' },
   { value: 'ongoing', label: 'Ongoing' },
-  { value: 'completed', label: 'Completed' },
   { value: 'waiting', label: 'Waiting for seller' }
 ];
 
@@ -146,20 +146,11 @@ const EscrowsSection: React.FC<EscrowsSectionProps> = ({
     setExpandedId(prev => (prev === id ? null : id));
   };
 
-  // Filter escrows based on status and active filter
-  const activeEscrows = escrowsData.items.filter(escrow => {
-    const status = escrow.status;
-    
-    // Apply filter
-    if (activeFilter === 'ongoing') {
-      return status === 'ongoing';
-    } else if (activeFilter === 'waiting') {
-      return status === 'waiting';
-    } else if (activeFilter === 'completed') {
-      return status === 'completed';
-    }
-    
-    // 'all' - show all escrows including cancelled
+  // Main panel: only in-flight escrows; completed / cancelled appear under Trade History
+  const activeEscrows = escrowsData.items.filter((escrow) => {
+    if (!isEscrowActiveForPanel(escrow)) return false;
+    if (activeFilter === 'ongoing') return escrow.status === 'ongoing';
+    if (activeFilter === 'waiting') return escrow.status === 'waiting';
     return true;
   });
 
@@ -187,11 +178,11 @@ const EscrowsSection: React.FC<EscrowsSectionProps> = ({
 
   return (
     <>
-      <div className="active-escrows-section">
+      <div className="active-escrows-section escrows-section">
         <div className="escrows-header-card" id="escrowsHeaderCard">
           <div className="escrows-header-content">
             <div className="escrows-title-section">
-              <h2>Escrows</h2>
+              <h2>Active Escrows</h2>
             </div>
             <div className="escrows-actions">
               <button className="btn btn-primary create-escrow-btn" id="createEscrowBtn" onClick={handleCreateEscrow}>

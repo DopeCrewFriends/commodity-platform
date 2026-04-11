@@ -259,6 +259,45 @@ export function useContacts() {
     saveUserData(walletAddress, 'contacts', []);
   }, [walletAddress]);
 
+  /** Supabase Realtime: list + requests update without full page refresh */
+  useEffect(() => {
+    if (!walletAddress) return;
+    const w = walletAddress.trim();
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const schedule = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null;
+        invalidateCache();
+        setRefreshTrigger((t) => t + 1);
+      }, 350);
+    };
+
+    const channel = supabase
+      .channel(`realtime:contacts:${w}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'contacts', filter: `user_wallet_address=eq.${w}` },
+        schedule
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'contact_requests', filter: `from_wallet_address=eq.${w}` },
+        schedule
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'contact_requests', filter: `to_wallet_address=eq.${w}` },
+        schedule
+      )
+      .subscribe();
+
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      void supabase.removeChannel(channel);
+    };
+  }, [walletAddress, invalidateCache]);
+
   // Refetch contacts (e.g. after accepting a contact request) and update UI
   const refetchContacts = useCallback(() => {
     if (!walletAddress) return;

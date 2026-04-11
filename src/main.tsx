@@ -2,7 +2,10 @@ import './polyfill-buffer'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
+import './styles/tokens.css'
 import './styles/styles.css'
+import './styles/shell.css'
+import './styles/institutional.css'
 import { clearAllEscrows } from './utils/storage'
 
 // One-time cache wipe: open app with ?clearEscrowCache=1 to clear escrow (and related) localStorage, then reload

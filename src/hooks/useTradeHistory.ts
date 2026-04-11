@@ -8,8 +8,6 @@ export function useTradeHistory(walletAddress: string | null) {
     ongoing: [],
     unsuccessful: []
   });
-  const [activeFilter, setActiveFilter] = useState<'completed' | 'ongoing' | 'unsuccessful'>('completed');
-
   useEffect(() => {
     if (!walletAddress) {
       setTradeHistory({ completed: [], ongoing: [], unsuccessful: [] });
@@ -35,8 +33,6 @@ export function useTradeHistory(walletAddress: string | null) {
 
   return {
     tradeHistory,
-    activeFilter,
-    setActiveFilter,
     updateTradeHistory
   };
 }

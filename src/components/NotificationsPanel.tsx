@@ -74,37 +74,15 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
   // Use shared profiles cache hook
   const { profiles } = useProfilesCache(walletAddresses);
 
-  // Filter escrows that need action (waiting, ongoing, or completed status where user is buyer or seller)
-  // Show all escrows that are waiting (for actions) or recently ongoing/completed (for status updates)
-  // Use useMemo to ensure it recalculates when escrowsData changes
+  // Escrow cards here are only in-flight deals (completed / cancelled live under Trade History)
   const pendingEscrows = React.useMemo(() => {
     if (!escrowsData || escrowsData.length === 0) return [];
 
-    const filtered = escrowsData.filter(
-      escrow => {
-        const status = escrow.status;
-        const isWaiting = status === 'waiting';
-        const isRecent = status === 'ongoing' || status === 'completed' || status === 'cancelled';
-        const isUserInvolved = escrow.buyer === walletAddress || escrow.seller === walletAddress;
-        
-        // Parse date - handle both ISO string and locale date string formats
-        let escrowDate: Date;
-        try {
-          escrowDate = new Date(escrow.startDate);
-          // If date is invalid, try parsing as locale date
-          if (isNaN(escrowDate.getTime())) {
-            escrowDate = new Date(escrow.startDate.replace(/(\d+)\/(\d+)\/(\d+)/, '$3-$1-$2'));
-          }
-        } catch {
-          escrowDate = new Date(); // Fallback to current date
-        }
-        // Show waiting escrows and recently ongoing/completed ones (within last 7 days)
-        const isRecentDate = isRecent && escrowDate.getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000;
-        return (isWaiting || isRecentDate) && isUserInvolved;
-      }
-    );
-
-    return filtered;
+    return escrowsData.filter((escrow) => {
+      const status = escrow.status;
+      if (status !== 'waiting' && status !== 'ongoing') return false;
+      return escrow.buyer === walletAddress || escrow.seller === walletAddress;
+    });
   }, [escrowsData, walletAddress]);
 
   // Close filter dropdown when clicking outside
@@ -238,7 +216,7 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
             <button
               type="button"
               className="notification-card__cta btn btn-primary"
-              onClick={() => navigate(`/escrows?open=${encodeURIComponent(escrow.id)}`)}
+              onClick={() => navigate(`/dashboard?open=${encodeURIComponent(escrow.id)}`)}
             >
               Manage
             </button>

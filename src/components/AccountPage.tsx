@@ -23,11 +23,12 @@ const AccountPage: React.FC<AccountPageProps> = ({
 
   if (!profileData) {
     return (
-      <div className="portfolio-dashboard" id="account">
-        <div className="container">
-          <div style={{ maxWidth: '800px', margin: '0 auto', textAlign: 'center', padding: '2rem' }}>
-            <p>Loading profile...</p>
-          </div>
+      <div className="portfolio-dashboard dash-inst" id="account">
+        <div className="dash-inst-container">
+          <p className="dash-inst-kicker" style={{ marginTop: '1rem' }}>
+            Account
+          </p>
+          <p>Loading profile…</p>
         </div>
       </div>
     );
@@ -35,9 +36,13 @@ const AccountPage: React.FC<AccountPageProps> = ({
 
   return (
     <>
-      <div className="portfolio-dashboard" id="account">
-        <div className="container">
-          <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+      <div className="portfolio-dashboard dash-inst" id="account">
+        <div className="dash-inst-container">
+          <header className="page-rail-header page-rail-header--flush">
+            <h1>Account</h1>
+            <p>Profile details and statistics for your organisation record.</p>
+          </header>
+          <div style={{ maxWidth: '800px' }}>
             <ProfileCard
               profileData={profileData}
               statistics={statistics}

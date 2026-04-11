@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef } from 'react';
 import { PublicKey, Transaction, type SendOptions } from '@solana/web3.js';
 import BN from 'bn.js';
 import { useContacts } from '../hooks/useContacts';
@@ -8,9 +8,7 @@ import { supabase } from '../utils/supabase';
 import {
   chainInitEscrow,
   chainMintForPaymentMethod,
-  getAppSolanaCluster,
   getClusterDisplayName,
-  getSolanaRpcUrl,
   isOnChainEscrowConfigured,
 } from '../utils/escrowChain';
 
@@ -64,20 +62,9 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
   const [paymentMethod, setPaymentMethod] = useState<'USDT' | 'USDC'>('USDC');
   const [additionalNotes, setAdditionalNotes] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [fileDropActive, setFileDropActive] = useState(false);
 
-  const appSolanaRpcHost = useMemo(() => {
-    try {
-      return new URL(getSolanaRpcUrl()).hostname;
-    } catch {
-      return 'Solana RPC';
-    }
-  }, []);
-
-  const clusterLabel = useMemo(() => getClusterDisplayName(), []);
-  const phantomSimNetwork = useMemo(
-    () => (getAppSolanaCluster() === 'mainnet-beta' ? 'Mainnet' : 'Devnet'),
-    []
-  );
+  const clusterLabel = getClusterDisplayName();
 
   const handleSelectContact = (contact: Contact) => {
     setSelectedContact(contact);
@@ -326,7 +313,7 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
         <div className="wallet-modal-header">
           <h2>Create Escrow</h2>
           {currentStep !== 'details' && (
-            <p style={{ fontSize: '0.8rem' }}>
+            <p className="modal-header-subtitle">
               {currentStep === 'select' ? 'Choose a contact to create an escrow with' : 'Review and confirm escrow details'}
             </p>
           )}
@@ -334,298 +321,154 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
 
         {currentStep === 'select' ? (
           <>
-        <div style={{ marginBottom: '1rem' }}>
-          <div className="contacts-search-container" style={{ marginBottom: '1rem' }}>
-            <input
-              type="text"
-              className="contacts-search-input"
-              placeholder="Search contacts by name, email, or wallet address..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-
-          <div style={{ 
-            maxHeight: '400px', 
-            overflowY: 'auto',
-            border: '1px solid rgba(0,0,0,0.1)',
-            borderRadius: '4px',
-            padding: '0.5rem'
-          }}>
-            {filteredContacts.length === 0 ? (
-              <div style={{ 
-                padding: '2rem', 
-                textAlign: 'center', 
-                color: '#666' 
-              }}>
-                {contacts.length === 0 
-                  ? 'No contacts yet. Add a contact first to create an escrow.'
-                  : 'No contacts match your search.'
-                }
+            <div className="cem-stack">
+              <div className="contacts-search-container" style={{ marginBottom: '1rem' }}>
+                <input
+                  type="text"
+                  className="contacts-search-input"
+                  placeholder="Search contacts by name, email, or wallet address..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
               </div>
-            ) : (
-              filteredContacts.map((contact) => {
-                const initials = getInitials(contact.name || '', contact.walletAddress);
-                const isSelected = selectedContact?.walletAddress === contact.walletAddress;
 
-                return (
-                  <div
-                    key={contact.walletAddress}
-                    onClick={() => handleSelectContact(contact)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '1rem',
-                      marginBottom: '0.5rem',
-                      cursor: 'pointer',
-                      borderRadius: '4px',
-                      backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.1)' : 'transparent',
-                      border: isSelected ? '2px solid var(--primary-color)' : '1px solid rgba(0,0,0,0.1)',
-                      transition: 'all 0.2s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isSelected) {
-                        e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isSelected) {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }
-                    }}
-                  >
-                    <div 
-                      className="contact-avatar" 
-                      style={{ 
-                        marginRight: '1rem',
-                        width: '48px',
-                        height: '48px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        borderRadius: '50%',
-                        backgroundColor: 'var(--bg-light)',
-                        fontSize: '1.2rem',
-                        fontWeight: 'bold'
-                      }}
-                    >
-                      {initials}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ 
-                        fontWeight: 'bold', 
-                        marginBottom: '0.25rem',
-                        fontSize: '1rem'
-                      }}>
-                        {contact.name || 'Unknown'}
-                        {(contact as any).username && (
-                          <span style={{ color: '#666', fontSize: '0.9em', marginLeft: '0.5rem' }}>
-                            @{(contact as any).username}
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ 
-                        fontSize: '0.85rem', 
-                        color: '#666',
-                        marginBottom: '0.25rem'
-                      }}>
-                        {contact.email || 'No email'}
-                      </div>
-                      <div style={{ 
-                        fontSize: '0.75rem', 
-                        color: '#999',
-                        fontFamily: 'monospace'
-                      }}>
-                        {contact.walletAddress.slice(0, 8)}...{contact.walletAddress.slice(-8)}
-                      </div>
-                      {contact.company && (
-                        <div style={{ 
-                          fontSize: '0.8rem', 
-                          color: '#666',
-                          marginTop: '0.25rem'
-                        }}>
-                          {contact.company}
-                        </div>
-                      )}
-                    </div>
-                    {isSelected && (
-                      <div style={{ 
-                        marginLeft: '1rem',
-                        color: 'var(--primary-color)',
-                        fontSize: '1.5rem'
-                      }}>
-                        ✓
-                      </div>
-                    )}
+              <div className="cem-scroll-list">
+                {filteredContacts.length === 0 ? (
+                  <div className="cem-empty">
+                    {contacts.length === 0
+                      ? 'No contacts yet. Add a contact first to create an escrow.'
+                      : 'No contacts match your search.'}
                   </div>
-                );
-              })
+                ) : (
+                  filteredContacts.map((contact) => {
+                    const initials = getInitials(contact.name || '', contact.walletAddress);
+                    const isSelected = selectedContact?.walletAddress === contact.walletAddress;
+
+                    return (
+                      <div
+                        key={contact.walletAddress}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => handleSelectContact(contact)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleSelectContact(contact);
+                          }
+                        }}
+                        className={`cem-contact-row${isSelected ? ' is-selected' : ''}`}
+                      >
+                        <div className="cem-contact-avatar contact-avatar">{initials}</div>
+                        <div className="cem-contact-body">
+                          <div className="cem-contact-name">
+                            {contact.name || 'Unknown'}
+                            {(contact as { username?: string }).username && (
+                              <span className="cem-username">@{(contact as { username?: string }).username}</span>
+                            )}
+                          </div>
+                          <div className="cem-contact-email">{contact.email || 'No email'}</div>
+                          <div className="cem-contact-wallet">
+                            {contact.walletAddress.slice(0, 8)}...{contact.walletAddress.slice(-8)}
+                          </div>
+                          {contact.company && (
+                            <div className="cem-contact-company">{contact.company}</div>
+                          )}
+                        </div>
+                        {isSelected && <div className="cem-check" aria-hidden>✓</div>}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {selectedContact && (
+              <div className="cem-selected-banner">
+                <strong>
+                  Selected: {selectedContact.name || 'Unknown'}
+                  {(selectedContact as { username?: string }).username && (
+                    <span className="cem-username"> @{(selectedContact as { username?: string }).username}</span>
+                  )}
+                </strong>
+                <div className="cem-muted">{selectedContact.email || 'No email'}</div>
+              </div>
             )}
-          </div>
-        </div>
 
-        {selectedContact && (
-          <div style={{ 
-            padding: '1rem', 
-            backgroundColor: 'rgba(37, 99, 235, 0.05)', 
-            borderRadius: '4px',
-            marginBottom: '1rem'
-          }}>
-            <div style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>
-              Selected: {selectedContact.name || 'Unknown'}
-              {(selectedContact as any).username && (
-                <span style={{ color: '#666', fontSize: '0.9em', marginLeft: '0.5rem' }}>
-                  @{(selectedContact as any).username}
-                </span>
-              )}
+            <div className="cem-modal-actions">
+              <button type="button" className="btn btn-secondary" onClick={onClose}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleContinue}
+                disabled={!selectedContact}
+              >
+                Continue
+              </button>
             </div>
-            <div style={{ fontSize: '0.9em', color: '#666' }}>
-              {selectedContact.email || 'No email'}
-            </div>
-          </div>
-        )}
-
-        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-color)' }}>
-          <button type="button" className="btn btn-secondary" onClick={onClose} style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
-            Cancel
-          </button>
-          <button 
-            type="button" 
-            className="btn btn-primary" 
-            onClick={handleContinue}
-            disabled={!selectedContact}
-            style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', opacity: selectedContact ? 1 : 0.5, cursor: selectedContact ? 'pointer' : 'not-allowed' }}
-          >
-            Continue
-          </button>
-        </div>
           </>
         ) : currentStep === 'details' ? (
           <div className="escrow-details-form">
             {/* Buyer (left) and Seller (right) with distinct colors */}
             {selectedContact && (
-              <div style={{ 
-                display: 'flex',
-                gap: '0.5rem',
-                marginBottom: '0.75rem'
-              }}>
-                <div style={{ 
-                  flex: 1,
-                  padding: '0.5rem 0.75rem', 
-                  backgroundColor: 'rgba(34, 197, 94, 0.08)', 
-                  borderRadius: '2.4px',
-                  border: '1px solid rgba(34, 197, 94, 0.35)',
-                  borderLeft: '3px solid rgb(34, 197, 94)'
-                }}>
-                  <div style={{ fontSize: '0.7rem', color: 'rgb(22, 163, 74)', fontWeight: '600', marginBottom: '0.25rem' }}>Buyer</div>
-                  <div style={{ fontWeight: '600', fontSize: '0.8rem', color: 'var(--text-dark)' }}>You</div>
+              <div className="cem-role-row">
+                <div className="cem-role-card cem-role-card--buyer">
+                  <div className="cem-role-label">Buyer</div>
+                  <div className="cem-role-value">You</div>
                 </div>
-                <div style={{ 
-                  flex: 1,
-                  padding: '0.5rem 0.75rem', 
-                  backgroundColor: 'rgba(234, 179, 8, 0.1)', 
-                  borderRadius: '2.4px',
-                  border: '1px solid rgba(234, 179, 8, 0.35)',
-                  borderLeft: '3px solid rgb(234, 179, 8)'
-                }}>
-                  <div style={{ fontSize: '0.7rem', color: 'rgb(202, 138, 4)', fontWeight: '600', marginBottom: '0.25rem' }}>Seller</div>
-                  <div style={{ fontWeight: '600', fontSize: '0.8rem', color: 'var(--text-dark)' }}>
+                <div className="cem-role-card cem-role-card--seller">
+                  <div className="cem-role-label">Seller</div>
+                  <div className="cem-role-value">
                     {selectedContact.name || 'Unknown'}
-                    {(selectedContact as any).username && (
-                      <span style={{ color: 'var(--text-light)', fontSize: '0.75em', marginLeft: '0.5rem' }}>
-                        @{(selectedContact as any).username}
-                      </span>
+                    {(selectedContact as { username?: string }).username && (
+                      <span className="cem-username"> @{(selectedContact as { username?: string }).username}</span>
                     )}
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Escrow Basis */}
-            <div className="form-group" style={{ marginBottom: '0.875rem' }}>
-              <label htmlFor="escrowBasis" style={{ display: 'block', marginBottom: '0.375rem', fontWeight: '600', fontSize: '0.8rem' }}>
-                Escrow Basis
-              </label>
+            <div className="form-group">
+              <label htmlFor="escrowBasis">Escrow basis</label>
               <input
                 type="text"
                 id="escrowBasis"
                 value={escrowBasis}
                 onChange={(e) => setEscrowBasis(e.target.value)}
                 placeholder="e.g., 100,000MT of EN590"
-                style={{
-                  width: '100%',
-                  padding: '0.5rem 0.75rem',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '2.4px',
-                  background: 'var(--bg-light)',
-                  color: 'var(--text-dark)',
-                  fontSize: '0.8rem'
-                }}
               />
-              <p style={{ marginTop: '0.25rem', fontSize: '0.7rem', color: 'var(--text-light)' }}>
-                Specify the commodity, quantity, and specifications
-              </p>
+              <p className="help-text">Specify the commodity, quantity, and specifications</p>
             </div>
 
-            {/* Escrow Amount */}
-            <div className="form-group" style={{ marginBottom: '0.875rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.375rem' }}>
-                <label htmlFor="escrowAmount" style={{ fontWeight: '600', fontSize: '0.8rem', marginBottom: 0 }}>
-                  Escrow Amount
-                </label>
-                <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center' }}>
+            <div className="form-group">
+              <div className="cem-label-row">
+                <label htmlFor="escrowAmount">Escrow amount</label>
+                <div className="cem-pay-toggles" role="group" aria-label="Payment token">
                   <button
                     type="button"
+                    className={`cem-pay-btn cem-pay-btn--usdt${paymentMethod === 'USDT' ? ' is-active' : ''}`}
                     onClick={() => setPaymentMethod('USDT')}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.25rem',
-                      padding: '0.25rem 0.5rem',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: '2.4px',
-                      background: paymentMethod === 'USDT' ? '#26a17b' : 'var(--bg-light)',
-                      color: paymentMethod === 'USDT' ? 'white' : 'var(--text-dark)',
-                      fontSize: '0.7rem',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      opacity: paymentMethod === 'USDT' ? 1 : 0.5
-                    }}
                   >
-                    <img 
-                      src="/images/usdt logo.png" 
-                      alt="USDT"
-                      style={{ width: '14px', height: '14px' }}
+                    <img
+                      src="/images/usdt logo.png"
+                      alt=""
                       onError={(e) => {
-                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.style.visibility = 'hidden';
                       }}
                     />
                     <span>USDT</span>
                   </button>
                   <button
                     type="button"
+                    className={`cem-pay-btn cem-pay-btn--usdc${paymentMethod === 'USDC' ? ' is-active' : ''}`}
                     onClick={() => setPaymentMethod('USDC')}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.25rem',
-                      padding: '0.25rem 0.5rem',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: '2.4px',
-                      background: paymentMethod === 'USDC' ? '#3e73c4' : 'var(--bg-light)',
-                      color: paymentMethod === 'USDC' ? 'white' : 'var(--text-dark)',
-                      fontSize: '0.7rem',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      opacity: paymentMethod === 'USDC' ? 1 : 0.5
-                    }}
                   >
-                    <img 
-                      src="/images/usdc.png" 
-                      alt="USDC"
-                      style={{ width: '14px', height: '14px' }}
+                    <img
+                      src="/images/usdc.png"
+                      alt=""
                       onError={(e) => {
-                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.style.visibility = 'hidden';
                       }}
                     />
                     <span>USDC</span>
@@ -639,95 +482,61 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
                 value={escrowAmount}
                 onChange={handleAmountChange}
                 placeholder="0.00"
-                style={{
-                  width: '100%',
-                  padding: '0.5rem 0.75rem',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '2.4px',
-                  background: 'var(--bg-light)',
-                  color: 'var(--text-dark)',
-                  fontSize: '0.8rem'
-                }}
               />
-              <p style={{ marginTop: '0.25rem', fontSize: '0.7rem', color: 'var(--text-light)' }}>
-                Amount to be held in escrow
-              </p>
+              <p className="help-text">Amount to be held in escrow</p>
             </div>
 
-            {/* Supporting Documents */}
-            <div className="form-group" style={{ marginBottom: '0.875rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.375rem', fontWeight: '600', fontSize: '0.8rem' }}>
-                Supporting Documents (Optional)
-              </label>
+            <div className="form-group">
+              <label htmlFor="fileUpload">Supporting documents (optional)</label>
               <div
-                style={{
-                  border: '2px dashed var(--border-color)',
-                  borderRadius: '2.4px',
-                  padding: '1rem',
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                  background: 'var(--bg-light)'
+                className={`cem-dropzone${fileDropActive ? ' is-dragover' : ''}`}
+                onDragEnter={(e) => {
+                  e.preventDefault();
+                  setFileDropActive(true);
                 }}
                 onDragOver={(e) => {
                   e.preventDefault();
-                  e.currentTarget.style.borderColor = 'var(--primary-color)';
+                  setFileDropActive(true);
                 }}
                 onDragLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--border-color)';
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    setFileDropActive(false);
+                  }
                 }}
                 onDrop={(e) => {
                   e.preventDefault();
-                  e.currentTarget.style.borderColor = 'var(--border-color)';
+                  setFileDropActive(false);
                   const files = Array.from(e.dataTransfer.files);
-                  const validFiles = files.filter(file => file.size <= 10 * 1024 * 1024);
+                  const validFiles = files.filter((file) => file.size <= 10 * 1024 * 1024);
                   setSelectedFiles([...selectedFiles, ...validFiles]);
                 }}
               >
                 <input
                   type="file"
                   id="fileUpload"
+                  className="hidden-input"
                   multiple
                   accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                   onChange={handleFileChange}
-                  style={{ display: 'none' }}
                 />
-                <label htmlFor="fileUpload" style={{ cursor: 'pointer', display: 'block' }}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ margin: '0 auto 0.375rem' }}>
+                <label htmlFor="fileUpload" className="cem-dropzone-label">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
                     <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                   </svg>
-                  <p style={{ margin: '0.25rem 0', fontSize: '0.8rem', color: 'var(--text-dark)' }}>
-                    Click to upload documents or drag and drop
-                  </p>
-                  <p style={{ margin: '0.125rem 0', fontSize: '0.7rem', color: 'var(--text-light)' }}>
-                    PDF, DOC, DOCX, JPG, PNG (Max 10MB per file)
-                  </p>
+                  <p className="cem-dropzone-title">Click to upload or drag and drop</p>
+                  <p className="cem-dropzone-hint">PDF, DOC, DOCX, JPG, PNG — max 10MB per file</p>
                 </label>
               </div>
               {selectedFiles.length > 0 && (
-                <div style={{ marginTop: '0.5rem' }}>
+                <div className="cem-file-list">
                   {selectedFiles.map((file, index) => (
-                    <div key={index} style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '0.375rem 0.5rem',
-                      background: 'var(--bg-light)',
-                      borderRadius: '2.4px',
-                      marginBottom: '0.375rem'
-                    }}>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-dark)' }}>{file.name}</span>
+                    <div key={file.name + index} className="cem-file-row">
+                      <span>{file.name}</span>
                       <button
                         type="button"
+                        className="cem-file-remove"
                         onClick={() => handleRemoveFile(index)}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--text-light)',
-                          cursor: 'pointer',
-                          fontSize: '1.1rem',
-                          padding: '0 0.375rem'
-                        }}
+                        aria-label={`Remove ${file.name}`}
                       >
                         ×
                       </button>
@@ -737,52 +546,26 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
               )}
             </div>
 
-            {/* Additional Notes */}
-            <div className="form-group" style={{ marginBottom: '0.875rem' }}>
-              <label htmlFor="additionalNotes" style={{ display: 'block', marginBottom: '0.375rem', fontWeight: '600', fontSize: '0.8rem' }}>
-                Additional Notes (Optional)
-              </label>
+            <div className="form-group">
+              <label htmlFor="additionalNotes">Additional notes (optional)</label>
               <textarea
                 id="additionalNotes"
                 value={additionalNotes}
                 onChange={(e) => setAdditionalNotes(e.target.value)}
                 placeholder="Additional details about the escrow..."
                 rows={3}
-                style={{
-                  width: '100%',
-                  padding: '0.5rem 0.75rem',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '2.4px',
-                  background: 'var(--bg-light)',
-                  color: 'var(--text-dark)',
-                  fontSize: '0.8rem',
-                  resize: 'vertical',
-                  fontFamily: 'inherit'
-                }}
               />
             </div>
 
-            {/* Action Buttons */}
-            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-color)' }}>
-              <button 
-                type="button" 
-                className="btn btn-secondary" 
-                onClick={handleBack}
-                style={{ padding: '0.5rem 0.875rem', fontSize: '0.8rem' }}
-              >
+            <div className="cem-modal-actions">
+              <button type="button" className="btn btn-secondary" onClick={handleBack}>
                 Back
               </button>
-              <button 
-                type="button" 
-                className="btn btn-primary" 
+              <button
+                type="button"
+                className="btn btn-primary"
                 onClick={handleCreateEscrow}
                 disabled={!escrowBasis || !escrowAmount || parseAmountNumber(escrowAmount) <= 0}
-                style={{ 
-                  padding: '0.5rem 0.875rem', 
-                  fontSize: '0.8rem', 
-opacity: (escrowBasis && escrowAmount && parseAmountNumber(escrowAmount) > 0) ? 1 : 0.5,
-                  cursor: (escrowBasis && escrowAmount && parseAmountNumber(escrowAmount) > 0) ? 'pointer' : 'not-allowed'
-                }}
               >
                 Review
               </button>
@@ -790,52 +573,36 @@ opacity: (escrowBasis && escrowAmount && parseAmountNumber(escrowAmount) > 0) ? 
           </div>
         ) : (
           <div className="escrow-review-form">
-            <div style={{ marginBottom: '0.875rem', padding: '0.75rem', background: 'var(--bg-light)', borderRadius: '2.4px', border: '1px solid var(--border-color)' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-light)', marginBottom: '0.5rem', fontWeight: '600' }}>
-                Review Escrow Details
-              </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)' }}>
-                Please review all information before confirming
-              </div>
+            <div className="cem-review-callout">
+              <div className="cem-review-label">Review escrow details</div>
+              <div className="cem-review-intro">Please confirm everything below before signing.</div>
             </div>
 
-            {/* Review Section */}
-            <div style={{ marginBottom: '0.875rem' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-light)', marginBottom: '0.5rem', fontWeight: '600' }}>
-                Counterparty
-              </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem 0.75rem', background: 'var(--bg-light)', borderRadius: '2.4px' }}>
+            <div className="cem-review-block">
+              <div className="cem-review-label">Counterparty</div>
+              <div className="cem-review-value">
                 {selectedContact?.name || 'Unknown'}
-                {selectedContact && (selectedContact as any).username && (
-                  <span style={{ color: 'var(--text-light)', marginLeft: '0.5rem' }}>
-                    @{(selectedContact as any).username}
-                  </span>
+                {selectedContact && (selectedContact as { username?: string }).username && (
+                  <span className="cem-muted"> @{(selectedContact as { username?: string }).username}</span>
                 )}
               </div>
             </div>
 
-            <div style={{ marginBottom: '0.875rem' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-light)', marginBottom: '0.5rem', fontWeight: '600' }}>
-                Escrow Basis
-              </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem 0.75rem', background: 'var(--bg-light)', borderRadius: '2.4px' }}>
-                {escrowBasis}
-              </div>
+            <div className="cem-review-block">
+              <div className="cem-review-label">Escrow basis</div>
+              <div className="cem-review-value">{escrowBasis}</div>
             </div>
 
-            <div style={{ marginBottom: '0.875rem' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-light)', marginBottom: '0.5rem', fontWeight: '600' }}>
-                Escrow Amount
-              </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem 0.75rem', background: 'var(--bg-light)', borderRadius: '2.4px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div className="cem-review-block">
+              <div className="cem-review-label">Escrow amount</div>
+              <div className="cem-review-value cem-review-value--amount">
                 ${parseAmountNumber(escrowAmount || '0').toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 {paymentMethod && (
-                  <img 
-                    src={paymentMethod === 'USDC' ? '/images/usdc.png' : '/images/usdt logo.png'} 
+                  <img
+                    src={paymentMethod === 'USDC' ? '/images/usdc.png' : '/images/usdt logo.png'}
                     alt={paymentMethod}
-                    style={{ width: '16px', height: '16px' }}
                     onError={(e) => {
-                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.style.visibility = 'hidden';
                     }}
                   />
                 )}
@@ -843,73 +610,29 @@ opacity: (escrowBasis && escrowAmount && parseAmountNumber(escrowAmount) > 0) ? 
             </div>
 
             {additionalNotes && (
-              <div style={{ marginBottom: '0.875rem' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-light)', marginBottom: '0.5rem', fontWeight: '600' }}>
-                  Additional Notes
-                </div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem 0.75rem', background: 'var(--bg-light)', borderRadius: '2.4px', whiteSpace: 'pre-wrap' }}>
-                  {additionalNotes}
-                </div>
+              <div className="cem-review-block">
+                <div className="cem-review-label">Additional notes</div>
+                <div className="cem-review-value cem-review-notes">{additionalNotes}</div>
               </div>
             )}
 
             {selectedFiles.length > 0 && (
-              <div style={{ marginBottom: '0.875rem' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-light)', marginBottom: '0.5rem', fontWeight: '600' }}>
-                  Supporting Documents ({selectedFiles.length})
-                </div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem 0.75rem', background: 'var(--bg-light)', borderRadius: '2.4px' }}>
+              <div className="cem-review-block">
+                <div className="cem-review-label">Supporting documents ({selectedFiles.length})</div>
+                <div className="cem-review-value">
                   {selectedFiles.map((file, index) => (
-                    <div key={index} style={{ marginBottom: '0.25rem' }}>
-                      {file.name}
-                    </div>
+                    <div key={file.name + index}>{file.name}</div>
                   ))}
                 </div>
               </div>
             )}
 
-            {chainBusy && paymentMethod === 'USDC' && (
-              <p
-                style={{
-                  fontSize: '0.72rem',
-                  lineHeight: 1.45,
-                  color: 'var(--text-light)',
-                  margin: '0 0 0.75rem',
-                  padding: '0.5rem 0.65rem',
-                  background: 'var(--bg-light)',
-                  borderRadius: '2.4px',
-                  border: '1px solid var(--border-color)',
-                }}
-              >
-                The app already simulated this on <strong>{appSolanaRpcHost}</strong> (override with{' '}
-                <code style={{ fontSize: '0.68rem' }}>VITE_SOLANA_RPC_URL</code>). Phantom simulates on its
-                own {phantomSimNetwork} path, so you may see a red warning or missing USDC lines even when the
-                transaction is valid. You can still confirm, or align Phantom’s {phantomSimNetwork} RPC with this
-                host for matching previews.
-              </p>
-            )}
-
-            {/* Action Buttons */}
-            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-color)' }}>
-              <button 
-                type="button" 
-                className="btn btn-secondary" 
-                onClick={handleBackToDetails}
-                style={{ padding: '0.5rem 0.875rem', fontSize: '0.8rem' }}
-              >
+            <div className="cem-modal-actions">
+              <button type="button" className="btn btn-secondary" onClick={handleBackToDetails}>
                 Back
               </button>
-              <button 
-                type="button" 
-                className="btn btn-primary" 
-                onClick={handleConfirmEscrow}
-                disabled={chainBusy}
-                style={{ 
-                  padding: '0.5rem 0.875rem', 
-                  fontSize: '0.8rem'
-                }}
-              >
-                {chainBusy ? 'Signing on-chain…' : 'Confirm & Create Escrow'}
+              <button type="button" className="btn btn-primary" onClick={handleConfirmEscrow} disabled={chainBusy}>
+                {chainBusy ? 'Signing on-chain…' : 'Confirm & create escrow'}
               </button>
             </div>
           </div>

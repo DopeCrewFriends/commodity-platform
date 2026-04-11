@@ -3,7 +3,11 @@ import { useContacts } from '../hooks/useContacts';
 import { getInitials } from '../utils/storage';
 import AddContactModal from './AddContactModal';
 
-const ContactsSection: React.FC = () => {
+interface ContactsSectionProps {
+  onContactRequestSent?: () => void;
+}
+
+const ContactsSection: React.FC<ContactsSectionProps> = ({ onContactRequestSent }) => {
   const { contacts, searchQuery, setSearchQuery, removeContact } = useContacts();
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -96,6 +100,7 @@ const ContactsSection: React.FC = () => {
       {showAddModal && (
         <AddContactModal
           onClose={() => setShowAddModal(false)}
+          onContactRequestSent={onContactRequestSent}
         />
       )}
     </>

@@ -1,11 +1,20 @@
-// Using direct RPC calls instead of @solana/web3.js
-const QUICKNODE_RPC_URL = 'https://restless-weathered-telescope.solana-mainnet.quiknode.pro/f69b75f517fdbfa8062bce9bd3d96310000e349a/';
+// Using direct RPC calls instead of @solana/web3.js (align with `getSolanaRpcUrl` in escrowChain.ts)
+function getRpcUrl(): string {
+  const u = import.meta.env.VITE_SOLANA_RPC_URL?.trim();
+  if (u) return u;
+  const cluster = import.meta.env.VITE_SOLANA_CLUSTER?.trim().toLowerCase();
+  if (cluster === 'mainnet-beta' || cluster === 'mainnet') {
+    return 'https://api.mainnet-beta.solana.com';
+  }
+  return 'https://api.devnet.solana.com';
+}
+
 const USDC_MINT_ADDRESS = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 const USDT_MINT_ADDRESS = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';
 
 export async function fetchSOLBalance(walletAddress: string): Promise<number> {
   try {
-    const response = await fetch(QUICKNODE_RPC_URL, {
+    const response = await fetch(getRpcUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -34,7 +43,7 @@ export async function fetchSOLBalance(walletAddress: string): Promise<number> {
 
 export async function fetchUSDCBalance(walletAddress: string): Promise<number> {
   try {
-    const response = await fetch(QUICKNODE_RPC_URL, {
+    const response = await fetch(getRpcUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -73,7 +82,7 @@ export async function fetchUSDCBalance(walletAddress: string): Promise<number> {
 
 export async function fetchUSDTBalance(walletAddress: string): Promise<number> {
   try {
-    const response = await fetch(QUICKNODE_RPC_URL, {
+    const response = await fetch(getRpcUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

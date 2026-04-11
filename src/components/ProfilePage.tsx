@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ProfileData, Statistics } from '../types';
 import { useBalances } from '../hooks/useBalances';
 import { useEscrows } from '../hooks/useEscrows';
@@ -14,6 +15,7 @@ import ContactsSection from './ContactsSection';
 import BalancesSection from './BalancesSection';
 import NotificationsPanel from './NotificationsPanel';
 import EditProfileModal from './EditProfileModal';
+import { isEscrowActiveForPanel, mergeTradeHistoryWithEscrows } from '../utils/escrowTradeHistory';
 
 interface ProfilePageProps {
   walletAddress: string;
@@ -24,6 +26,8 @@ interface ProfilePageProps {
   checkUsernameAvailability: (username: string) => Promise<boolean>;
   profileLoading: boolean;
 }
+
+type DashboardTab = 'overview' | 'messages';
 
 const ProfilePage: React.FC<ProfilePageProps> = ({
   walletAddress,
@@ -38,10 +42,40 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
   const { escrowsData, updateEscrows } = useEscrows(walletAddress);
   const handleEscrowAction = useEscrowChainActions(walletAddress, escrowsData, updateEscrows);
   const { chainPublicKey, signTransaction, signAndSendTransaction } = useWallet();
-  const { tradeHistory, activeFilter, setActiveFilter } = useTradeHistory(walletAddress);
-  const { contactRequests, outgoingRequests, acceptContactRequest, rejectContactRequest, cancelContactRequest } = useNotifications(walletAddress);
+  const { tradeHistory } = useTradeHistory(walletAddress);
+
+  const displayTradeHistory = useMemo(
+    () => mergeTradeHistoryWithEscrows(tradeHistory, escrowsData.items),
+    [tradeHistory, escrowsData.items]
+  );
+  const {
+    contactRequests,
+    outgoingRequests,
+    acceptContactRequest,
+    rejectContactRequest,
+    cancelContactRequest,
+    refetchContactRequests
+  } = useNotifications(walletAddress);
   const { refetchContacts } = useContacts();
   const [showEditModal, setShowEditModal] = useState(false);
+  const [dashboardTab, setDashboardTab] = useState<DashboardTab>('overview');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const openEscrowId = searchParams.get('open') ?? undefined;
+
+  useEffect(() => {
+    if (openEscrowId) {
+      setDashboardTab('overview');
+      setSearchParams({}, { replace: true });
+    }
+  }, [openEscrowId, setSearchParams]);
+
+  const messagesBadgeCount = useMemo(() => {
+    const w = walletAddress.trim();
+    const actionableEscrows = escrowsData.items.filter(
+      (e) => isEscrowActiveForPanel(e) && (e.buyer.trim() === w || e.seller.trim() === w)
+    ).length;
+    return actionableEscrows + contactRequests.length + outgoingRequests.length;
+  }, [escrowsData.items, walletAddress, contactRequests.length, outgoingRequests.length]);
 
   const handleContactRequestAction = async (requestId: string, action: 'accept' | 'reject' | 'cancel') => {
     if (action === 'accept') {
@@ -60,179 +94,52 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
 
   return (
     <>
-      <style>{`
-        .profile-balances-row {
-          display: flex !important;
-          gap: 0.75rem !important;
-          margin-bottom: 1rem !important;
-          align-items: stretch !important;
-        }
-        .profile-balances-row .profile-section {
-          flex: 0 1 75% !important;
-          margin-bottom: 0 !important;
-          min-width: 0 !important;
-          padding: 0.875rem !important;
-          padding-bottom: 0.875rem !important;
-        }
-        .profile-balances-row .profile-header {
-          gap: 0 !important;
-          margin-bottom: 0.375rem !important;
-          padding-bottom: 0 !important;
-        }
-        .profile-balances-row .profile-stats {
-          margin-top: 0.25rem !important;
-          padding-top: 0.25rem !important;
-        }
-        .profile-balances-row .profile-avatar {
-          width: 50px !important;
-          height: 50px !important;
-        }
-        .profile-balances-row .avatar-placeholder {
-          width: 50px !important;
-          height: 50px !important;
-          font-size: 1.5rem !important;
-        }
-        .profile-balances-row .profile-name {
-          font-size: 1.5rem !important;
-          margin-bottom: 0.375rem !important;
-        }
-        .profile-balances-row .profile-email {
-          font-size: 0.875rem !important;
-          margin-bottom: 0.5rem !important;
-        }
-        .profile-balances-row .profile-company {
-          font-size: 0.85rem !important;
-          margin-bottom: 0.375rem !important;
-          gap: 0.375rem !important;
-        }
-        .profile-balances-row .profile-location {
-          font-size: 0.85rem !important;
-          margin-bottom: 0.5rem !important;
-          gap: 0.375rem !important;
-        }
-        .profile-balances-row .profile-wallet {
-          font-size: 0.8rem !important;
-          gap: 0.375rem !important;
-        }
-        .profile-balances-row .profile-stats {
-          grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)) !important;
-          gap: 0.375rem !important;
-        }
-        .profile-balances-row .balances-header-card {
-          padding: 1rem !important;
-        }
-        .escrows-contacts-row {
-          display: flex !important;
-          gap: 0.75rem !important;
-          margin-bottom: 0 !important;
-          align-items: flex-start !important;
-          width: 100% !important;
-          max-width: 100% !important;
-        }
-        .escrows-contacts-row .active-escrows-section {
-          flex: 1 1 50% !important;
-          margin-bottom: 0 !important;
-          min-width: 0 !important;
-          display: flex !important;
-          flex-direction: column !important;
-          height: calc(100vh - 457px) !important;
-          max-height: calc(100vh - 457px) !important;
-        }
-        .escrows-contacts-row .contacts-section {
-          flex: 1 1 50% !important;
-          margin-bottom: 0 !important;
-          min-width: 0 !important;
-          display: flex !important;
-          flex-direction: column !important;
-          height: calc(100vh - 457px) !important;
-          max-height: calc(100vh - 457px) !important;
-        }
-        .escrows-contacts-row .escrows-header-card,
-        .escrows-contacts-row .contacts-header-card {
-          flex: 0 0 auto !important;
-          display: flex !important;
-          flex-direction: column !important;
-          height: calc(100vh - 457px) !important;
-          max-height: calc(100vh - 457px) !important;
-          overflow: hidden !important;
-        }
-        .main-content-layout {
-          display: flex !important;
-          gap: 0.75rem !important;
-          align-items: stretch !important;
-        }
-        .main-content-left {
-          flex: 1 1 auto !important;
-          min-width: 0 !important;
-        }
-        .notifications-sidebar {
-          flex: 0 0 360px !important;
-          min-width: 360px !important;
-          max-width: 360px !important;
-        }
-        .profile-balances-row .balances-section {
-          flex: 0 0 280px !important;
-          min-width: 280px !important;
-          max-width: 280px !important;
-        }
-        @media (max-width: 1400px) {
-          .notifications-sidebar {
-            flex: 0 0 340px !important;
-            min-width: 340px !important;
-            max-width: 340px !important;
-          }
-          .profile-balances-row .balances-section {
-            flex: 0 0 260px !important;
-            min-width: 260px !important;
-            max-width: 260px !important;
-          }
-        }
-        @media (max-width: 968px) {
-          .main-content-layout {
-            flex-direction: column !important;
-          }
-          .notifications-sidebar {
-            flex: 1 1 100% !important;
-            min-width: 100% !important;
-            max-width: 100% !important;
-          }
-          .profile-balances-row {
-            flex-direction: column !important;
-          }
-          .profile-balances-row .balances-section {
-            min-width: 100% !important;
-            max-width: 100% !important;
-          }
-          .escrows-contacts-row {
-            flex-direction: column !important;
-          }
-          .escrows-contacts-row .active-escrows-section,
-          .escrows-contacts-row .contacts-section {
-            flex: 1 1 100% !important;
-          }
-        }
-      `}</style>
-      <main className="portfolio-dashboard" id="profile">
-        <div className="container">
-          <div className="main-content-layout">
-            <div className="main-content-left">
-          <div className="profile-balances-row">
-            <ProfileCard
-              profileData={profileData}
-              statistics={statistics}
-              onEditClick={() => setShowEditModal(true)}
-              walletAddress={walletAddress}
-            />
-            <BalancesSection balances={balances} solPrice={solPrice} loading={loading} priceLoading={priceLoading} />
-          </div>
+      <main className="portfolio-dashboard dash-inst" id="profile">
+        <div className="dash-inst-container">
+          <header className="dash-inst-header">
+            <div>
+              <p className="dash-inst-kicker">Home</p>
+              <h1 className="dash-inst-title">Dashboard</h1>
+            </div>
+            <div className="dash-inst-tabs" role="tablist" aria-label="Dashboard sections">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={dashboardTab === 'overview'}
+                onClick={() => setDashboardTab('overview')}
+              >
+                Overview
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={dashboardTab === 'messages'}
+                onClick={() => setDashboardTab('messages')}
+              >
+                Messages
+                {messagesBadgeCount > 0 ? (
+                  <span className="dash-inst-tab-badge">{messagesBadgeCount > 99 ? '99+' : messagesBadgeCount}</span>
+                ) : null}
+              </button>
+            </div>
+          </header>
 
-          <TradeHistorySection
-            tradeHistory={tradeHistory}
-            activeFilter={activeFilter}
-            onFilterChange={setActiveFilter}
-          />
+          {dashboardTab === 'overview' && (
+            <div className="dash-inst-stack">
+              <div className="dash-inst-row dash-inst-row--account">
+                <ProfileCard
+                  profileData={profileData}
+                  statistics={statistics}
+                  onEditClick={() => setShowEditModal(true)}
+                  walletAddress={walletAddress}
+                />
+                <BalancesSection balances={balances} solPrice={solPrice} loading={loading} priceLoading={priceLoading} />
+              </div>
 
-          <div className="escrows-contacts-row">
+              <section className="dash-inst-section" aria-labelledby="dash-escrows-heading">
+                <h2 id="dash-escrows-heading" className="visually-hidden">
+                  Active escrows
+                </h2>
                 <EscrowsSection
                   escrowsData={escrowsData}
                   updateEscrows={updateEscrows}
@@ -241,12 +148,22 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                   signTransaction={signTransaction}
                   signAndSendTransaction={signAndSendTransaction}
                   onEscrowAction={handleEscrowAction}
+                  openEscrowId={openEscrowId}
                 />
-                <ContactsSection />
+              </section>
+
+              <div className="dash-inst-grid2">
+                <ContactsSection onContactRequestSent={refetchContactRequests} />
+                <TradeHistorySection tradeHistory={displayTradeHistory} walletAddress={walletAddress} />
               </div>
             </div>
+          )}
 
-            <div className="notifications-sidebar">
+          {dashboardTab === 'messages' && (
+            <section className="dash-inst-section dash-inst-section--messages" aria-labelledby="dash-messages-heading">
+              <h2 id="dash-messages-heading" className="visually-hidden">
+                Messages and notifications
+              </h2>
               <NotificationsPanel
                 walletAddress={walletAddress}
                 escrowsData={escrowsData.items}
@@ -254,8 +171,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                 outgoingRequests={outgoingRequests}
                 onContactRequestAction={handleContactRequestAction}
               />
-            </div>
-          </div>
+            </section>
+          )}
         </div>
       </main>
 
@@ -269,6 +186,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
           checkUsernameAvailability={checkUsernameAvailability}
         />
       )}
+
     </>
   );
 };

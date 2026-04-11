@@ -30,6 +30,8 @@ export function useNotifications(walletAddress: string | null) {
       return;
     }
 
+    const w = walletAddress.trim();
+
     const loadContactRequests = async () => {
       setLoading(true);
       try {
@@ -37,7 +39,7 @@ export function useNotifications(walletAddress: string | null) {
         const { data: incomingRequests, error: incomingError } = await supabase
           .from('contact_requests')
           .select('*')
-          .eq('to_wallet_address', walletAddress)
+          .eq('to_wallet_address', w)
           .eq('status', 'pending')
           .order('created_at', { ascending: false });
 
@@ -45,7 +47,7 @@ export function useNotifications(walletAddress: string | null) {
         const { data: outgoingRequests, error: outgoingError } = await supabase
           .from('contact_requests')
           .select('*')
-          .eq('from_wallet_address', walletAddress)
+          .eq('from_wallet_address', w)
           .eq('status', 'pending')
           .order('created_at', { ascending: false });
 
@@ -139,6 +141,39 @@ export function useNotifications(walletAddress: string | null) {
 
     loadContactRequests();
   }, [walletAddress, refreshTrigger]);
+
+  /** Refetch when contact_requests change (send, accept, reject, other tab/device). */
+  useEffect(() => {
+    if (!walletAddress) return;
+    const w = walletAddress.trim();
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const schedule = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null;
+        setRefreshTrigger((t) => t + 1);
+      }, 350);
+    };
+
+    const channel = supabase
+      .channel(`realtime:notifications:${w}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'contact_requests', filter: `from_wallet_address=eq.${w}` },
+        schedule
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'contact_requests', filter: `to_wallet_address=eq.${w}` },
+        schedule
+      )
+      .subscribe();
+
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      void supabase.removeChannel(channel);
+    };
+  }, [walletAddress]);
 
   const acceptContactRequest = async (requestId: string): Promise<boolean> => {
     if (!walletAddress) return false;

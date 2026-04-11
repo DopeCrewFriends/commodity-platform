@@ -49,22 +49,16 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ profileData, statistics, onEd
               <img 
                 src={profileData.avatarImage} 
                 alt="Profile" 
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  borderRadius: '50%',
-                  objectFit: 'cover',
-                  boxShadow: 'var(--shadow)'
-                }}
+                className="profile-avatar-img"
               />
             ) : (
               <div className="avatar-placeholder-large">{initials}</div>
             )}
           </div>
           <div className="profile-name-section">
-            <h1 className={`profile-name-large ${!profileData.name?.trim() ? 'placeholder-text' : ''}`}>
+            <h2 className={`profile-name-large ${!profileData.name?.trim() ? 'placeholder-text' : ''}`}>
               {profileData.name?.trim() || 'Your Name'}
-            </h1>
+            </h2>
             {(profileData as any).username && (
               <span className="username-value-large">@{(profileData as any).username}</span>
             )}
@@ -97,12 +91,11 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ profileData, statistics, onEd
           </div>
           <div className="profile-info-item">
             <span className="info-label">Wallet</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <div className="wallet-row">
               <span 
                 className="info-value wallet-address-text copyable-wallet" 
                 id="profileWalletAddress"
                 onClick={copyWalletAddress}
-                style={{ cursor: 'pointer' }}
               >
                 {walletAddress}
               </span>

@@ -8,81 +8,107 @@ interface BalancesSectionProps {
   priceLoading: boolean;
 }
 
+function fmtUsd(n: number): string {
+  return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+type AssetKey = 'sol' | 'usdc' | 'usdt';
+
+interface AssetRowProps {
+  asset: AssetKey;
+  symbol: string;
+  label: string;
+  iconSrc: string;
+  nativeLine: React.ReactNode;
+  usdLine: React.ReactNode;
+}
+
+const AssetRow: React.FC<AssetRowProps> = ({ asset, symbol, label, iconSrc, nativeLine, usdLine }) => (
+  <article className={`balance-panel__asset balance-panel__asset--${asset}`} data-asset={asset}>
+    <div className="balance-panel__asset-accent" aria-hidden />
+    <div className="balance-panel__asset-inner">
+      <div className="balance-panel__asset-left">
+        <div className="balance-panel__icon-wrap">
+          <img src={iconSrc} alt="" className="balance-panel__icon" width={22} height={22} aria-hidden />
+        </div>
+        <div className="balance-panel__asset-titles">
+          <span className="balance-panel__symbol">{symbol}</span>
+          <span className="balance-panel__label">{label}</span>
+        </div>
+      </div>
+      <div className="balance-panel__asset-right">
+        <span className="balance-panel__native">{nativeLine}</span>
+        <span className="balance-panel__usd">{usdLine}</span>
+      </div>
+    </div>
+  </article>
+);
+
 const BalancesSection: React.FC<BalancesSectionProps> = ({ balances, solPrice, loading, priceLoading }) => {
   const solUSDValue = balances.SOL.amount * solPrice;
   const totalUSDValue = solUSDValue + balances.USDC.amount + balances.USDT.amount;
-  
-  const totalUSDDisplay = totalUSDValue > 0 
-    ? `$${totalUSDValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-    : loading || priceLoading ? 'Loading...' : '$0.00';
+
+  const totalDisplay =
+    totalUSDValue > 0
+      ? fmtUsd(totalUSDValue)
+      : loading || priceLoading
+        ? '…'
+        : fmtUsd(0);
+
+  const solNative =
+    priceLoading && solPrice <= 0 ? (
+      <span className="balance-panel__shimmer">Loading…</span>
+    ) : (
+      <>{balances.SOL.amount.toFixed(4)} SOL</>
+    );
+
+  const solUsd =
+    priceLoading && solPrice <= 0 ? (
+      <span className="balance-panel__muted">—</span>
+    ) : solPrice > 0 ? (
+      fmtUsd(solUSDValue)
+    ) : (
+      <span className="balance-panel__muted">No price</span>
+    );
 
   return (
-    <div className="balances-section">
-      <div className="balances-header-card" id="balancesHeaderCard">
-        <div className="balances-header-content">
-          <div className="balances-title-section">
-            <h2>Balance</h2>
+    <div className="balances-section balance-panel">
+      <div className="balances-header-card balance-panel__card" id="balancesHeaderCard">
+        <header className="balance-panel__hero">
+          <div className="balance-panel__hero-text">
+            <h2 className="balance-panel__title">Balances</h2>
+            <p className="balance-panel__subtitle">Estimated value (USD)</p>
           </div>
-          <div className="balances-total-wrap">
-            <span className="balance-amount" id="totalBalanceValue">
-              {totalUSDDisplay}
-            </span>
-          </div>
-        </div>
-        
-        <div className="balances-token-list" id="balancesTokenList">
-          <div className="token-list" id="tokenList">
-            <div className="token-item" id="solTokenItem">
-              <div className="token-icon">
-                <img src="/images/sol.png" alt="SOL" className="token-logo" />
-              </div>
-              <div className="token-info">
-                <div className="token-name">SOL</div>
-              </div>
-              <div className="token-balance">
-                <div className="token-amount" id="solAmount">
-                  {priceLoading ? (
-                    'Loading...'
-                  ) : (
-                    <>
-                      <div className="token-amount-value">{balances.SOL.amount.toFixed(4)} SOL</div>
-                      {solPrice > 0 && (
-                        <div className="token-amount-usd">${(solUSDValue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="token-item" id="usdcTokenItem">
-              <div className="token-icon">
-                <img src="/images/usdc.png" alt="USDC" className="token-logo" />
-              </div>
-              <div className="token-info">
-                <div className="token-name">USDC</div>
-              </div>
-              <div className="token-balance">
-                <div className="token-amount" id="usdcAmount">
-                  <div className="token-amount-value">{balances.USDC.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC</div>
-                  <div className="token-amount-usd">${balances.USDC.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                </div>
-              </div>
-            </div>
-            <div className="token-item" id="usdtTokenItem">
-              <div className="token-icon">
-                <img src="/images/usdt logo.png" alt="USDT" className="token-logo" />
-              </div>
-              <div className="token-info">
-                <div className="token-name">USDT</div>
-              </div>
-              <div className="token-balance">
-                <div className="token-amount" id="usdtAmount">
-                  <div className="token-amount-value">{balances.USDT.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT</div>
-                  <div className="token-amount-usd">${balances.USDT.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                </div>
-              </div>
-              </div>
-          </div>
+          <p className="balance-panel__total" id="totalBalanceValue">
+            {totalDisplay}
+          </p>
+        </header>
+
+        <div className="balance-panel__assets balances-token-list" id="balancesTokenList">
+          <AssetRow
+            asset="sol"
+            symbol="SOL"
+            label="Solana"
+            iconSrc="/images/sol.png"
+            nativeLine={solNative}
+            usdLine={solUsd}
+          />
+          <AssetRow
+            asset="usdc"
+            symbol="USDC"
+            label="USD Coin"
+            iconSrc="/images/usdc.png"
+            nativeLine={<>{balances.USDC.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC</>}
+            usdLine={fmtUsd(balances.USDC.amount)}
+          />
+          <AssetRow
+            asset="usdt"
+            symbol="USDT"
+            label="Tether"
+            iconSrc="/images/usdt logo.png"
+            nativeLine={<>{balances.USDT.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT</>}
+            usdLine={fmtUsd(balances.USDT.amount)}
+          />
         </div>
       </div>
     </div>
@@ -90,6 +116,3 @@ const BalancesSection: React.FC<BalancesSectionProps> = ({ balances, solPrice, l
 };
 
 export default BalancesSection;
-
-
-

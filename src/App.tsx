@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { SOLPriceProvider } from './contexts/SOLPriceContext';
 import { useWallet } from './hooks/useWallet';
 import { useTheme } from './hooks/useTheme';
@@ -8,11 +8,17 @@ import { useProfile } from './hooks/useProfile';
 import LandingPage from './components/LandingPage';
 import ProfilePage from './components/ProfilePage';
 import AccountPage from './components/AccountPage';
-import EscrowsPage from './components/EscrowsPage';
+import MarketplacePage from './components/MarketplacePage';
 import WalletModal from './components/WalletModal';
 import EditProfileModal from './components/EditProfileModal';
 import Navigation from './components/Navigation';
 import Footer from './components/Footer';
+
+/** Old `/escrows` URLs (e.g. bookmarks, notification links) land on the dashboard. */
+function EscrowsToDashboardRedirect() {
+  const { search } = useLocation();
+  return <Navigate to={{ pathname: '/dashboard', search }} replace />;
+}
 
 function AppContent() {
   const { walletAddress, isConnected, connect, disconnect } = useWallet();
@@ -151,14 +157,8 @@ function AppContent() {
                   />
                 } 
               />
-              <Route 
-                path="/escrows" 
-                element={
-                  <EscrowsPage 
-                    walletAddress={profileData?.walletAddress || ''}
-                  />
-                } 
-              />
+              <Route path="/escrows" element={<EscrowsToDashboardRedirect />} />
+              <Route path="/marketplace" element={<MarketplacePage />} />
               <Route 
                 path="/account" 
                 element={

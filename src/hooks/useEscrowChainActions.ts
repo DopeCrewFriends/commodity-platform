@@ -10,6 +10,7 @@ import {
   isOnChainEscrowConfigured,
   pollOnChainEscrowResolved,
 } from '../utils/escrowChain';
+import { isEscrowActiveForPanel } from '../utils/escrowTradeHistory';
 
 type EscrowAction = 'accept' | 'reject' | 'cancel' | 'complete' | 'sign_complete' | 'sign_cancel';
 
@@ -202,7 +203,7 @@ export function useEscrowChainActions(
       });
 
       const totalAmount = updatedEscrows
-        .filter((e) => e.status === 'ongoing' || e.status === 'waiting')
+        .filter(isEscrowActiveForPanel)
         .reduce((sum, e) => sum + e.amount, 0);
 
       await updateEscrows({ totalAmount, items: updatedEscrows });

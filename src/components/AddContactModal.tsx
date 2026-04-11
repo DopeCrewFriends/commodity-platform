@@ -1,18 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../hooks/useAuth';
 import { useContacts } from '../hooks/useContacts';
-import { useNotifications } from '../hooks/useNotifications';
 import { ProfileData } from '../types';
 import { getInitials } from '../utils/storage';
 
 interface AddContactModalProps {
   onClose: () => void;
+  /** Refetch notifications in the parent (same `useNotifications` instance as the bell panel). */
+  onContactRequestSent?: () => void;
 }
 
-const AddContactModal: React.FC<AddContactModalProps> = ({ onClose }) => {
-  const { walletAddress } = useAuth();
+const AddContactModal: React.FC<AddContactModalProps> = ({ onClose, onContactRequestSent }) => {
   const { sendContactRequest, searchUsers, getTopUsers } = useContacts();
-  const { refetchContactRequests } = useNotifications(walletAddress);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<ProfileData[]>([]);
   const [topUsers, setTopUsers] = useState<ProfileData[]>([]);
@@ -74,7 +72,7 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ onClose }) => {
     if (selectedUser && selectedUser.username) {
       try {
         await sendContactRequest(selectedUser.username);
-        refetchContactRequests();
+        onContactRequestSent?.();
         onClose();
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to send contact request. Please try again.');
