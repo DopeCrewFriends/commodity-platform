@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { ProfileData, Statistics } from '../types';
 import { useBalances } from '../hooks/useBalances';
 import { useEscrows } from '../hooks/useEscrows';
+import { useEscrowChainActions } from '../hooks/useEscrowChainActions';
+import { useWallet } from '../hooks/useWallet';
 import { useTradeHistory } from '../hooks/useTradeHistory';
 import { useContacts } from '../hooks/useContacts';
 import { useNotifications } from '../hooks/useNotifications';
-import { supabase } from '../utils/supabase';
 import ProfileCard from './ProfileCard';
 import TradeHistorySection from './TradeHistorySection';
 import EscrowsSection from './EscrowsSection';
@@ -35,79 +36,12 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
 }) => {
   const { balances, solPrice, loading, priceLoading } = useBalances(walletAddress);
   const { escrowsData, updateEscrows } = useEscrows(walletAddress);
+  const handleEscrowAction = useEscrowChainActions(walletAddress, escrowsData, updateEscrows);
+  const { chainPublicKey, signTransaction, signAndSendTransaction } = useWallet();
   const { tradeHistory, activeFilter, setActiveFilter } = useTradeHistory(walletAddress);
   const { contactRequests, outgoingRequests, acceptContactRequest, rejectContactRequest, cancelContactRequest } = useNotifications(walletAddress);
   const { refetchContacts } = useContacts();
   const [showEditModal, setShowEditModal] = useState(false);
-
-  const handleEscrowAction = async (escrowId: string, action: 'accept' | 'reject' | 'cancel' | 'complete' | 'sign_complete' | 'sign_cancel') => {
-    const escrow = escrowsData.items.find(e => e.id === escrowId);
-    if (!escrow) return;
-
-    const me = walletAddress.trim();
-    let newStatus: 'waiting' | 'ongoing' | 'completed' | 'cancelled' = escrow.status;
-    let cancelledBy: string | undefined;
-    let completeSignedBy: string[] = escrow.complete_signed_by ?? [];
-    let cancelSignedBy: string[] = escrow.cancel_signed_by ?? [];
-
-    if (action === 'accept') {
-      newStatus = 'ongoing';
-    } else if (action === 'reject') {
-      newStatus = 'cancelled';
-      cancelledBy = me;
-    } else if (action === 'cancel' && escrow.status === 'waiting') {
-      newStatus = 'cancelled';
-      cancelledBy = me;
-    } else if (action === 'sign_complete') {
-      if (!completeSignedBy.includes(me)) completeSignedBy = [...completeSignedBy, me];
-      if (completeSignedBy.length >= 2) newStatus = 'completed';
-    } else if (action === 'sign_cancel') {
-      if (!cancelSignedBy.includes(me)) cancelSignedBy = [...cancelSignedBy, me];
-      if (cancelSignedBy.length >= 2) newStatus = 'cancelled';
-    } else if (action === 'complete') {
-      newStatus = 'completed';
-    }
-
-    const updatePayload: Record<string, unknown> = {
-      status: newStatus,
-      updated_at: new Date().toISOString()
-    };
-    if (cancelledBy !== undefined) updatePayload.cancelled_by = cancelledBy;
-    if (action === 'sign_complete' || action === 'sign_cancel') {
-      updatePayload.complete_signed_by = completeSignedBy;
-      updatePayload.cancel_signed_by = cancelSignedBy;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('escrows')
-        .update(updatePayload)
-        .eq('id', escrowId);
-
-      if (error && error.code !== 'PGRST205' && error.code !== '42P01') {
-        console.warn('Error updating escrow in Supabase:', error);
-      }
-    } catch {
-      // Supabase may be unavailable; local state still updated
-    }
-
-    const updatedEscrows = escrowsData.items.map(e => {
-      if (e.id !== escrowId) return e;
-      return {
-        ...e,
-        status: newStatus,
-        cancelled_by: cancelledBy ?? e.cancelled_by,
-        complete_signed_by: completeSignedBy,
-        cancel_signed_by: cancelSignedBy
-      };
-    });
-
-    const totalAmount = updatedEscrows
-      .filter(e => e.status === 'ongoing' || e.status === 'waiting')
-      .reduce((sum, e) => sum + e.amount, 0);
-
-    updateEscrows({ totalAmount, items: updatedEscrows });
-  };
 
   const handleContactRequestAction = async (requestId: string, action: 'accept' | 'reject' | 'cancel') => {
     if (action === 'accept') {
@@ -299,7 +233,15 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
           />
 
           <div className="escrows-contacts-row">
-                <EscrowsSection escrowsData={escrowsData} updateEscrows={updateEscrows} walletAddress={walletAddress} onEscrowAction={handleEscrowAction} />
+                <EscrowsSection
+                  escrowsData={escrowsData}
+                  updateEscrows={updateEscrows}
+                  walletAddress={walletAddress}
+                  chainPublicKey={chainPublicKey}
+                  signTransaction={signTransaction}
+                  signAndSendTransaction={signAndSendTransaction}
+                  onEscrowAction={handleEscrowAction}
+                />
                 <ContactsSection />
               </div>
             </div>

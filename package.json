@@ -4,25 +4,31 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --port 5173 --strictPort",
     "dev:vercel": "vercel dev",
-    "start": "vite",
+    "start": "vite --port 5173 --strictPort",
     "build": "tsc && vite build",
-    "preview": "vite preview",
-    "setup": "echo 'Setup: 1) Run supabase-setup.sql in Supabase, 2) Add credentials to .env, 3) Run: vercel link, 4) Run: vercel dev'"
+    "preview": "vite preview"
   },
   "dependencies": {
-    "@solana/kit": "^5.1.0",
+    "@coral-xyz/anchor": "^0.32.1",
+    "@solana/spl-token": "^0.4.13",
+    "@solana/web3.js": "^1.98.4",
     "@supabase/supabase-js": "^2.39.0",
+    "bn.js": "^5.2.2",
+    "bs58": "^5.0.0",
+    "buffer": "^6.0.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.11.0"
   },
   "devDependencies": {
+    "@types/bn.js": "^5.2.0",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "@vitejs/plugin-react": "^4.2.1",
     "typescript": "^5.2.2",
+    "vercel": "^50.1.5",
     "vite": "^5.0.8"
   }
 }

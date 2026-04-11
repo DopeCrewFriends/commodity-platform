@@ -2907,12 +2907,52 @@ body.wallet-modal-open > *:not(.wallet-modal):not(.profile-completion-modal):not
 }
 .escrow-timeline-content {
     display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.15rem;
+    flex: 1;
+    min-width: 0;
+}
+.escrow-timeline-content-row {
+    display: flex;
     flex-wrap: wrap;
     align-items: baseline;
     justify-content: space-between;
     gap: 0.25rem 0.5rem;
-    flex: 1;
-    min-width: 0;
+    width: 100%;
+}
+.escrow-timeline-tx-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    width: 100%;
+}
+.escrow-timeline-tx {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.5rem;
+    font-size: 0.6875rem;
+}
+.escrow-timeline-tx-label {
+    color: var(--text-light);
+    font-weight: 500;
+}
+.escrow-timeline-tx-sig {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.65rem;
+    color: var(--text-dark);
+}
+.escrow-timeline-tx-solscan {
+    font-weight: 600;
+    color: #2563eb;
+    text-decoration: none;
+}
+.escrow-timeline-tx-solscan:hover {
+    text-decoration: underline;
+}
+[data-theme="dark"] .escrow-timeline-tx-solscan {
+    color: #93c5fd;
 }
 .escrow-timeline-label {
     font-size: 0.8125rem;

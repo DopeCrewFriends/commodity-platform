@@ -21,6 +21,17 @@ export interface TokenBalance {
 // Standardized escrow status values
 export type EscrowStatus = 'waiting' | 'ongoing' | 'completed' | 'cancelled';
 
+/** On-chain tx signatures (devnet) stored in `escrows.chain_transactions` JSONB. */
+export interface EscrowChainTransactions {
+  accept?: string;
+  reject?: string;
+  buyerCancel?: string;
+  /** One entry per successful `vote(2)` signature (up to 2 before account may close). */
+  voteComplete?: string[];
+  /** One entry per successful `vote(1)` signature. */
+  voteCancel?: string[];
+}
+
 export interface Escrow {
   id: string;
   buyer: string;
@@ -34,6 +45,14 @@ export interface Escrow {
   cancelled_by?: string; // Wallet address of user who cancelled/rejected (seller = rejected, buyer = cancelled)
   complete_signed_by?: string[]; // Wallet addresses of parties who have signed to complete (2/2 = completed)
   cancel_signed_by?: string[];   // Wallet addresses of parties who have signed to cancel (2/2 = cancelled)
+  /** u64 nonce (decimal string) for PDA seeds — set when escrow row is created */
+  chainNonce?: string;
+  /** On-chain escrow PDA (base58) after buyer funds */
+  chainEscrowPda?: string;
+  /** Signature of init_escrow (fund + create PDA) */
+  chainInitTx?: string;
+  /** Additional Anchor tx sigs (accept / reject / cancel / votes). */
+  chainTransactions?: EscrowChainTransactions;
 }
 
 export interface EscrowsData {

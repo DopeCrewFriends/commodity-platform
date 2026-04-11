@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ProfileData, Statistics } from '../types';
 import { loadUserData } from '../utils/storage';
 import { supabase } from '../utils/supabase';
@@ -236,29 +236,27 @@ export function useProfile(skipLoadUntilComplete: boolean = false, walletAddress
     }
   };
 
-  const isProfileComplete = (): boolean => {
+  const isProfileComplete = useCallback((): boolean => {
     if (!profileData) {
       return false;
     }
-    
+
     const checks = {
       name: !!profileData.name?.trim(),
       email: !!profileData.email?.trim(),
       company: !!profileData.company?.trim(),
       location: !!profileData.location?.trim(),
-      username: !!profileData.username?.trim()
+      username: !!profileData.username?.trim(),
     };
 
-    const isComplete = !!(
+    return !!(
       checks.name &&
       checks.email &&
       checks.company &&
       checks.location &&
       checks.username
     );
-    
-    return isComplete;
-  };
+  }, [profileData]);
 
   return {
     profileData,

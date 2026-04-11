@@ -1,3 +1,29 @@
+/** localStorage can throw (private mode, blocked storage, security settings). */
+export function safeLocalStorageGetItem(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+export function safeLocalStorageSetItem(key: string, value: string): boolean {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function safeLocalStorageRemoveItem(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function getUserDataKey(walletAddress: string, dataType: string): string {
   return `user_${walletAddress}_${dataType}`;
 }
@@ -16,7 +42,7 @@ export function saveUserData<T>(walletAddress: string, dataType: string, data: T
 
 export function loadUserData<T>(walletAddress: string, dataType: string): T | null {
   const key = getUserDataKey(walletAddress, dataType);
-  const data = localStorage.getItem(key);
+  const data = safeLocalStorageGetItem(key);
   if (!data) return null;
   try {
     return JSON.parse(data) as T;
@@ -27,7 +53,7 @@ export function loadUserData<T>(walletAddress: string, dataType: string): T | nu
 }
 
 export function getCurrentWalletAddress(): string | null {
-  return localStorage.getItem('walletAddress');
+  return safeLocalStorageGetItem('walletAddress');
 }
 
 export function formatWalletAddress(address: string): string {

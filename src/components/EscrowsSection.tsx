@@ -1,15 +1,24 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { EscrowsData, Contact, EscrowStatus } from '../types';
+import type { PublicKey, Transaction, SendOptions } from '@solana/web3.js';
+import { EscrowsData, Contact, EscrowStatus, Escrow } from '../types';
+import { solscanTxUrl } from '../utils/solscan';
 import { getInitials } from '../utils/storage';
 import { getEscrowStatusDisplayLabel, getEscrowStepDisplayLabel } from '../utils/escrowStatus';
 import { useProfilesCache } from '../hooks/useProfilesCache';
 import CreateEscrowModal from './CreateEscrowModal';
 import { useAuth } from '../hooks/useAuth';
 
+export type PhantomSignTransaction = (tx: Transaction) => Promise<Transaction>;
+
 interface EscrowsSectionProps {
   escrowsData: EscrowsData;
   updateEscrows: (data: EscrowsData) => void;
   walletAddress?: string;
+  /** Same `useWallet()` instance as the app — CreateEscrowModal must not call `useWallet()` again or chain signing stays null. */
+  chainPublicKey?: PublicKey | null;
+  signTransaction?: PhantomSignTransaction | null;
+  /** Phantom `signAndSendTransaction` — prefer for clearer approve previews (optional). */
+  signAndSendTransaction?: ((tx: Transaction, opts?: SendOptions) => Promise<{ signature: string }>) | null;
   onEscrowAction?: (escrowId: string, action: 'accept' | 'reject' | 'cancel' | 'complete' | 'sign_complete' | 'sign_cancel') => void;
   openEscrowId?: string;
 }
@@ -21,6 +30,69 @@ const LIFECYCLE_STEPS: { status: EscrowStatus; label: string }[] = [
   { status: 'cancelled', label: 'Cancelled' }
 ];
 
+function shortTxSig(signature: string): string {
+  if (!signature || signature.length < 14) return signature;
+  return `${signature.slice(0, 6)}…${signature.slice(-4)}`;
+}
+
+function EscrowTimelineTxRow({ label, signature }: { label: string; signature: string }) {
+  return (
+    <div className="escrow-timeline-tx">
+      <span className="escrow-timeline-tx-label">{label}</span>
+      <code className="escrow-timeline-tx-sig" title={signature}>
+        {shortTxSig(signature)}
+      </code>
+      <a
+        href={solscanTxUrl(signature)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="escrow-timeline-tx-solscan"
+      >
+        Solscan
+      </a>
+    </div>
+  );
+}
+
+/** On-chain tx links for a lifecycle step (init, accept, votes, reject/cancel). */
+function escrowTimelineTxBlock(step: EscrowStatus, escrow: Escrow, inPath: boolean): React.ReactNode {
+  if (!inPath) return null;
+  const ct = escrow.chainTransactions;
+  if (step === 'waiting' && escrow.chainInitTx?.trim()) {
+    return <EscrowTimelineTxRow label="Create / fund escrow" signature={escrow.chainInitTx.trim()} />;
+  }
+  if (step === 'ongoing' && ct?.accept?.trim()) {
+    return <EscrowTimelineTxRow label="Seller accepted (on-chain)" signature={ct.accept.trim()} />;
+  }
+  if (step === 'completed' && ct?.voteComplete?.length) {
+    const parts = ct.voteComplete
+      .map((sig, i) =>
+        sig?.trim() ? (
+          <EscrowTimelineTxRow key={`${sig}-${i}`} label={`Sign to complete (${i + 1})`} signature={sig.trim()} />
+        ) : null
+      )
+      .filter(Boolean);
+    return parts.length ? <div className="escrow-timeline-tx-stack">{parts}</div> : null;
+  }
+  if (step === 'cancelled') {
+    const parts: React.ReactNode[] = [];
+    ct?.voteCancel?.forEach((sig, i) => {
+      if (sig?.trim()) {
+        parts.push(
+          <EscrowTimelineTxRow key={`vc-${sig}-${i}`} label={`Sign to cancel (${i + 1})`} signature={sig.trim()} />
+        );
+      }
+    });
+    if (ct?.reject?.trim()) {
+      parts.push(<EscrowTimelineTxRow key="rej" label="Seller rejected" signature={ct.reject.trim()} />);
+    }
+    if (ct?.buyerCancel?.trim()) {
+      parts.push(<EscrowTimelineTxRow key="bc" label="Buyer cancelled" signature={ct.buyerCancel.trim()} />);
+    }
+    return parts.length ? <div className="escrow-timeline-tx-stack">{parts}</div> : null;
+  }
+  return null;
+}
 
 type EscrowFilterType = 'all' | 'ongoing' | 'waiting' | 'completed';
 
@@ -33,7 +105,16 @@ const ESCROW_FILTER_OPTIONS: { value: EscrowFilterType; label: string }[] = [
 
 type SignConfirmAction = 'sign_complete' | 'sign_cancel';
 
-const EscrowsSection: React.FC<EscrowsSectionProps> = ({ escrowsData, updateEscrows, walletAddress: walletAddressProp, onEscrowAction, openEscrowId }) => {
+const EscrowsSection: React.FC<EscrowsSectionProps> = ({
+  escrowsData,
+  updateEscrows,
+  walletAddress: walletAddressProp,
+  chainPublicKey,
+  signTransaction,
+  signAndSendTransaction,
+  onEscrowAction,
+  openEscrowId,
+}) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [activeFilter, setActiveFilter] = useState<EscrowFilterType>('all');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -251,6 +332,7 @@ const EscrowsSection: React.FC<EscrowsSectionProps> = ({ escrowsData, updateEscr
                             const inPath = escrow.status === 'cancelled' ? (step.status === 'waiting' || step.status === 'cancelled') : step.status !== 'cancelled';
                             const dateLabel = (step.status === 'waiting' || isActive) ? new Date(escrow.startDate).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
                             const stepLabel = getEscrowStepDisplayLabel(step.status, escrow, walletAddress);
+                            const txBlock = escrowTimelineTxBlock(step.status, escrow, inPath);
                             return (
                               <div
                                 key={step.status}
@@ -266,8 +348,11 @@ const EscrowsSection: React.FC<EscrowsSectionProps> = ({ escrowsData, updateEscr
                                   )}
                                 </div>
                                 <div className="escrow-timeline-content">
-                                  <span className="escrow-timeline-label">{stepLabel}</span>
-                                  <span className="escrow-timeline-date">{inPath ? dateLabel : '—'}</span>
+                                  <div className="escrow-timeline-content-row">
+                                    <span className="escrow-timeline-label">{stepLabel}</span>
+                                    <span className="escrow-timeline-date">{inPath ? dateLabel : '—'}</span>
+                                  </div>
+                                  {txBlock}
                                 </div>
                               </div>
                             );
@@ -303,7 +388,10 @@ const EscrowsSection: React.FC<EscrowsSectionProps> = ({ escrowsData, updateEscr
                           return (
                             <div className="escrow-two-party">
                               <p className="escrow-two-party-intro">
-                                This is a two-party escrow. Completion or cancellation only happens when <strong>both parties</strong> have signed the same option. You can sign for both; the escrow completes or cancels when 2/2 have signed that option.
+                                This is a two-party escrow. On Solana, <strong>each wallet has one on-chain vote</strong> (complete
+                                or cancel). Signing one option and then the other <strong>replaces</strong> your vote — if buyer
+                                and seller end on different choices, the escrow stays locked until both match. The counters below
+                                track who has signed in the app; the chain only settles when both on-chain votes agree.
                               </p>
                               <div className="escrow-two-party-rows">
                                 <div className="escrow-two-party-panel">
@@ -363,6 +451,9 @@ const EscrowsSection: React.FC<EscrowsSectionProps> = ({ escrowsData, updateEscr
           onClose={() => setShowCreateModal(false)}
           onSelectContact={handleSelectContact}
           walletAddress={walletAddress}
+          chainPublicKey={chainPublicKey ?? null}
+          signTransaction={signTransaction ?? null}
+          signAndSendTransaction={signAndSendTransaction ?? null}
           currentEscrowsData={escrowsData}
           updateEscrows={updateEscrows}
         />

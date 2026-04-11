@@ -3,6 +3,8 @@ import { EscrowsData, Escrow } from '../types';
 import { loadUserData, saveUserData } from '../utils/storage';
 import { supabase } from '../utils/supabase';
 import { normalizeEscrowStatus, isActiveEscrowStatus } from '../utils/escrowStatus';
+import { parseEscrowChainTransactions } from '../utils/escrowChainMeta';
+import { reconcileEscrowWithOnChainState } from '../utils/escrowChain';
 
 export function useEscrows(walletAddress: string | null) {
   const [escrowsData, setEscrowsData] = useState<EscrowsData>({
@@ -41,7 +43,7 @@ export function useEscrows(walletAddress: string | null) {
         }
 
         if (supabaseEscrows && supabaseEscrows.length > 0) {
-          const escrows: Escrow[] = supabaseEscrows
+          const escrowsFromDb: Escrow[] = supabaseEscrows
             .filter((escrow: any) => isActiveEscrowStatus(escrow.status))
             .map((escrow: any) => {
               const normalizedStatus = normalizeEscrowStatus(escrow.status);
@@ -57,9 +59,30 @@ export function useEscrows(walletAddress: string | null) {
                 paymentMethod: escrow.payment_method || 'USDC',
                 cancelled_by: escrow.cancelled_by?.trim() || escrow.cancelled_by,
                 complete_signed_by: Array.isArray(escrow.complete_signed_by) ? escrow.complete_signed_by.map((w: string) => w?.trim()).filter(Boolean) : [],
-                cancel_signed_by: Array.isArray(escrow.cancel_signed_by) ? escrow.cancel_signed_by.map((w: string) => w?.trim()).filter(Boolean) : []
+                cancel_signed_by: Array.isArray(escrow.cancel_signed_by) ? escrow.cancel_signed_by.map((w: string) => w?.trim()).filter(Boolean) : [],
+                chainNonce: escrow.chain_nonce?.trim() || undefined,
+                chainEscrowPda: escrow.chain_escrow_pda?.trim() || undefined,
+                chainInitTx: escrow.chain_init_tx?.trim() || undefined,
+                chainTransactions: (() => {
+                  const ct = parseEscrowChainTransactions(escrow.chain_transactions);
+                  return ct && Object.keys(ct).length > 0 ? ct : undefined;
+                })(),
               };
             });
+
+          const escrows = await Promise.all(escrowsFromDb.map((e) => reconcileEscrowWithOnChainState(e)));
+
+          for (let i = 0; i < escrows.length; i++) {
+            if (escrows[i].status !== escrowsFromDb[i].status) {
+              const { error: syncErr } = await supabase
+                .from('escrows')
+                .update({ status: escrows[i].status, updated_at: new Date().toISOString() })
+                .eq('id', escrows[i].id);
+              if (syncErr && syncErr.code !== 'PGRST205' && syncErr.code !== '42P01') {
+                console.warn('Could not sync reconciled escrow status to Supabase:', escrows[i].id, syncErr);
+              }
+            }
+          }
 
           const totalAmount = escrows.reduce((sum, escrow) => sum + escrow.amount, 0);
           const escrowsData: EscrowsData = {
@@ -140,7 +163,7 @@ export function useEscrows(walletAddress: string | null) {
 
     try {
       for (const escrow of data.items) {
-        const upsertData = {
+        const upsertData: Record<string, unknown> = {
           id: escrow.id,
           buyer_wallet_address: escrow.buyer.trim(),
           seller_wallet_address: escrow.seller.trim(),
@@ -152,8 +175,11 @@ export function useEscrows(walletAddress: string | null) {
           payment_method: escrow.paymentMethod || 'USDC',
           created_by: (escrow.created_by || walletAddress).trim(),
           created_at: escrow.startDate || new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         };
+        if (escrow.chainNonce != null) upsertData.chain_nonce = escrow.chainNonce;
+        if (escrow.chainEscrowPda != null) upsertData.chain_escrow_pda = escrow.chainEscrowPda;
+        if (escrow.chainInitTx != null) upsertData.chain_init_tx = escrow.chainInitTx;
 
         const { error } = await supabase
           .from('escrows')
@@ -165,6 +191,17 @@ export function useEscrows(walletAddress: string | null) {
 
         if (error && error.code !== 'PGRST205' && error.code !== '42P01') {
           console.error('Error syncing escrow to Supabase:', error);
+        } else if (escrow.chainTransactions != null && Object.keys(escrow.chainTransactions).length > 0) {
+          const { error: txErr } = await supabase
+            .from('escrows')
+            .update({
+              chain_transactions: escrow.chainTransactions,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', escrow.id);
+          if (txErr && txErr.code !== 'PGRST205' && txErr.code !== '42P01') {
+            console.warn('chain_transactions sync failed (row may still be correct):', escrow.id, txErr);
+          }
         }
       }
     } catch (error) {

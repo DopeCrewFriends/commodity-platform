@@ -34,9 +34,7 @@ pnpm-lock.yaml
 .env.development.local
 .env.*.local
 
-
 .vercel
-.env*.local
 
-.vercel
-.env*.local
+# Keep DB schema local if you prefer not to publish it
+supabase-setup-full.sql

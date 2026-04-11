@@ -1,6 +1,6 @@
 {
   "framework": "vite",
-  "devCommand": "vite",
+  "devCommand": "vite --port 5173 --strictPort",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]

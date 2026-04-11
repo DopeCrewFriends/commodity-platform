@@ -1,13 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
+import { PublicKey, Transaction, type SendOptions } from '@solana/web3.js';
+import BN from 'bn.js';
 import { useContacts } from '../hooks/useContacts';
 import { Contact, EscrowsData, Escrow } from '../types';
 import { getInitials } from '../utils/storage';
 import { supabase } from '../utils/supabase';
+import {
+  chainInitEscrow,
+  chainMintForPaymentMethod,
+  getAppSolanaCluster,
+  getClusterDisplayName,
+  getSolanaRpcUrl,
+  isOnChainEscrowConfigured,
+} from '../utils/escrowChain';
 
 interface CreateEscrowModalProps {
   onClose: () => void;
   onSelectContact: (contact: Contact) => void;
   walletAddress: string;
+  /** From parent `useWallet()` — do not use a second `useWallet()` here or Phantom signing stays out of sync. */
+  chainPublicKey: PublicKey | null;
+  signTransaction: ((tx: Transaction) => Promise<Transaction>) | null;
+  signAndSendTransaction?: ((tx: Transaction, opts?: SendOptions) => Promise<{ signature: string }>) | null;
   currentEscrowsData: EscrowsData;
   updateEscrows: (data: EscrowsData) => void;
 }
@@ -28,14 +42,19 @@ function parseAmountNumber(displayValue: string): number {
   return parseFloat(displayValue.replace(/,/g, '')) || 0;
 }
 
-const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({ 
-  onClose, 
+const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
+  onClose,
   onSelectContact,
-  walletAddress, 
+  walletAddress,
+  chainPublicKey,
+  signTransaction,
+  signAndSendTransaction,
   currentEscrowsData,
-  updateEscrows
+  updateEscrows,
 }) => {
   const { contacts, searchQuery, setSearchQuery } = useContacts();
+  const confirmInFlight = useRef(false);
+  const [chainBusy, setChainBusy] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [currentStep, setCurrentStep] = useState<'select' | 'details' | 'review'>('select');
   
@@ -45,6 +64,20 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
   const [paymentMethod, setPaymentMethod] = useState<'USDT' | 'USDC'>('USDC');
   const [additionalNotes, setAdditionalNotes] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+
+  const appSolanaRpcHost = useMemo(() => {
+    try {
+      return new URL(getSolanaRpcUrl()).hostname;
+    } catch {
+      return 'Solana RPC';
+    }
+  }, []);
+
+  const clusterLabel = useMemo(() => getClusterDisplayName(), []);
+  const phantomSimNetwork = useMemo(
+    () => (getAppSolanaCluster() === 'mainnet-beta' ? 'Mainnet' : 'Devnet'),
+    []
+  );
 
   const handleSelectContact = (contact: Contact) => {
     setSelectedContact(contact);
@@ -85,80 +118,192 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
 
   const handleConfirmEscrow = async () => {
     if (!selectedContact || !escrowBasis || !escrowAmount || parseAmountNumber(escrowAmount) <= 0) return;
-
-    // Creator is always the buyer; selected contact is the seller
+    if (confirmInFlight.current) return;
+    confirmInFlight.current = true;
+    try {
     const buyer = walletAddress.trim();
     const seller = selectedContact.walletAddress.trim();
-
-    // Create escrow ID
     const escrowId = `escrow-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const createdAt = new Date().toISOString();
-
     let finalEscrowId = escrowId;
+    const nonceBn = new BN(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER));
+    const chainNonceStr = nonceBn.toString(10);
+    const amountNum = parseAmountNumber(escrowAmount);
 
-    // First, try to create escrow in Supabase (source of truth)
-    try {
-      const insertData = {
+    const canSignChain =
+      chainPublicKey != null &&
+      signTransaction != null &&
+      chainMintForPaymentMethod(paymentMethod) != null;
+    const programConfigured = isOnChainEscrowConfigured();
+    /** USDC + program + wallet: init on-chain first, then persist (no DB row without lock). */
+    const usdcOnChainPath = paymentMethod === 'USDC' && programConfigured && canSignChain;
+
+    if (paymentMethod === 'USDC' && !programConfigured) {
+      window.alert(
+        `USDC escrows lock funds on Solana ${clusterLabel}.\n\nSet VITE_ESCROW_PROGRAM_ID in .env.local (deployed program id), restart the dev server, then try again.`
+      );
+      return;
+    }
+    if (paymentMethod === 'USDC' && programConfigured && !canSignChain) {
+      window.alert(
+        `Connect Phantom on ${clusterLabel} so we can sign the escrow init transaction.`
+      );
+      return;
+    }
+
+    let chainEscrowPda: string | undefined;
+    let chainInitTx: string | undefined;
+
+    if (usdcOnChainPath) {
+      setChainBusy(true);
+      try {
+        const { signature, escrowPda } = await chainInitEscrow(
+          {
+            publicKey: chainPublicKey,
+            signTransaction,
+            ...(signAndSendTransaction ? { signAndSendTransaction } : {}),
+          },
+          new PublicKey(seller.trim()),
+          amountNum,
+          nonceBn
+        );
+        chainEscrowPda = escrowPda;
+        chainInitTx = signature;
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error('On-chain init failed:', e);
+        window.alert(
+          `Could not lock USDC on-chain — no escrow was saved.\n\n${msg}\n\n` +
+            `Use Phantom on ${clusterLabel} with USDC and SOL for that network. Set VITE_SOLANA_RPC_URL (and optionally VITE_SOLANA_CLUSTER) so the app matches your wallet.`
+        );
+        return;
+      } finally {
+        setChainBusy(false);
+      }
+
+      const insertData: Record<string, unknown> = {
         id: escrowId,
         buyer_wallet_address: buyer.trim(),
         seller_wallet_address: seller.trim(),
         commodity: escrowBasis,
-        amount: parseAmountNumber(escrowAmount),
+        amount: amountNum,
         status: 'waiting' as const,
-        duration_days: 7, // Default duration
+        duration_days: 7,
         additional_notes: additionalNotes || null,
         payment_method: paymentMethod,
         created_by: walletAddress.trim(),
         created_at: createdAt,
-        updated_at: createdAt
+        updated_at: createdAt,
+        chain_nonce: chainNonceStr,
+        chain_escrow_pda: chainEscrowPda,
+        chain_init_tx: chainInitTx,
       };
 
-      const { data, error: supabaseError } = await supabase
-        .from('escrows')
-        .insert(insertData)
-        .select()
-        .single();
+      try {
+        const { data, error: supabaseError } = await supabase
+          .from('escrows')
+          .insert(insertData)
+          .select()
+          .single();
 
-      if (supabaseError) {
-        if (supabaseError.code !== 'PGRST205' && supabaseError.code !== '42P01') {
-          console.error('Error creating escrow in Supabase:', supabaseError);
+        if (supabaseError) {
+          if (supabaseError.code !== 'PGRST205' && supabaseError.code !== '42P01') {
+            console.error('Error creating escrow in Supabase:', supabaseError);
+          }
+          if (String(supabaseError.message || '').toLowerCase().includes('chain_nonce')) {
+            const { chain_nonce: _c, chain_escrow_pda: _p, chain_init_tx: _t, ...rest } = insertData;
+            const retry = await supabase.from('escrows').insert(rest).select().single();
+            if (!retry.error && retry.data?.id) {
+              finalEscrowId = retry.data.id;
+              await supabase
+                .from('escrows')
+                .update({
+                  chain_nonce: chainNonceStr,
+                  chain_escrow_pda: chainEscrowPda,
+                  chain_init_tx: chainInitTx,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', finalEscrowId);
+            } else {
+              window.alert(
+                `USDC is locked on-chain (PDA ${chainEscrowPda}) but the database row failed.\n\nInit tx: ${chainInitTx}\n\nRun supabase-setup-full.sql chain_* columns, then add this escrow manually if needed.`
+              );
+            }
+          } else {
+            window.alert(
+              `USDC is locked on-chain (PDA ${chainEscrowPda}) but Supabase insert failed.\n\nInit tx: ${chainInitTx}\n\n${supabaseError.message}`
+            );
+          }
+        } else if (data?.id) {
+          finalEscrowId = data.id;
         }
-      } else {
-        if (data?.id) finalEscrowId = data.id;
+      } catch (error) {
+        console.error('Error creating escrow in Supabase:', error);
+        window.alert(
+          `USDC is locked on-chain (PDA ${chainEscrowPda}). Supabase save failed — check console.\n\nInit tx: ${chainInitTx}`
+        );
       }
-    } catch (error) {
-      console.error('Error creating escrow in Supabase:', error);
+    } else {
+      // USDT / off-chain template: Supabase only (same as before)
+      try {
+        const insertData: Record<string, unknown> = {
+          id: escrowId,
+          buyer_wallet_address: buyer.trim(),
+          seller_wallet_address: seller.trim(),
+          commodity: escrowBasis,
+          amount: amountNum,
+          status: 'waiting' as const,
+          duration_days: 7,
+          additional_notes: additionalNotes || null,
+          payment_method: paymentMethod,
+          created_by: walletAddress.trim(),
+          created_at: createdAt,
+          updated_at: createdAt,
+        };
+
+        const { data, error: supabaseError } = await supabase
+          .from('escrows')
+          .insert(insertData)
+          .select()
+          .single();
+
+        if (supabaseError && supabaseError.code !== 'PGRST205' && supabaseError.code !== '42P01') {
+          console.error('Error creating escrow in Supabase:', supabaseError);
+        } else if (data?.id) {
+          finalEscrowId = data.id;
+        }
+      } catch (error) {
+        console.error('Error creating escrow in Supabase:', error);
+      }
     }
 
-    // Create new escrow object with final ID
     const newEscrow: Escrow = {
       id: finalEscrowId,
       buyer,
       seller,
       commodity: escrowBasis,
-      amount: parseAmountNumber(escrowAmount),
+      amount: amountNum,
       status: 'waiting',
       startDate: createdAt,
       created_by: walletAddress,
-      paymentMethod: paymentMethod
+      paymentMethod: paymentMethod,
+      chainNonce: usdcOnChainPath ? chainNonceStr : undefined,
+      chainEscrowPda,
+      chainInitTx,
     };
 
-    // Update local state for current user
-    // If Supabase succeeded, this will just update local cache
-    // If Supabase failed, this will save to localStorage as fallback
     const updatedEscrows: EscrowsData = {
       totalAmount: currentEscrowsData.totalAmount + newEscrow.amount,
-      items: [...currentEscrowsData.items, newEscrow]
+      items: [...currentEscrowsData.items, newEscrow],
     };
 
     updateEscrows(updatedEscrows);
 
-    // IMPORTANT: Do NOT save to other user's localStorage
-    // The other user will fetch this escrow from Supabase when they load their page
-    // Supabase is the source of truth for cross-user data
-
     onSelectContact(selectedContact);
     onClose();
+    } finally {
+      confirmInFlight.current = false;
+    }
   };
 
   const handleBackToDetails = () => {
@@ -723,6 +868,27 @@ opacity: (escrowBasis && escrowAmount && parseAmountNumber(escrowAmount) > 0) ? 
               </div>
             )}
 
+            {chainBusy && paymentMethod === 'USDC' && (
+              <p
+                style={{
+                  fontSize: '0.72rem',
+                  lineHeight: 1.45,
+                  color: 'var(--text-light)',
+                  margin: '0 0 0.75rem',
+                  padding: '0.5rem 0.65rem',
+                  background: 'var(--bg-light)',
+                  borderRadius: '2.4px',
+                  border: '1px solid var(--border-color)',
+                }}
+              >
+                The app already simulated this on <strong>{appSolanaRpcHost}</strong> (override with{' '}
+                <code style={{ fontSize: '0.68rem' }}>VITE_SOLANA_RPC_URL</code>). Phantom simulates on its
+                own {phantomSimNetwork} path, so you may see a red warning or missing USDC lines even when the
+                transaction is valid. You can still confirm, or align Phantom’s {phantomSimNetwork} RPC with this
+                host for matching previews.
+              </p>
+            )}
+
             {/* Action Buttons */}
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-color)' }}>
               <button 
@@ -737,12 +903,13 @@ opacity: (escrowBasis && escrowAmount && parseAmountNumber(escrowAmount) > 0) ? 
                 type="button" 
                 className="btn btn-primary" 
                 onClick={handleConfirmEscrow}
+                disabled={chainBusy}
                 style={{ 
                   padding: '0.5rem 0.875rem', 
                   fontSize: '0.8rem'
                 }}
               >
-                Confirm & Create Escrow
+                {chainBusy ? 'Signing on-chain…' : 'Confirm & Create Escrow'}
               </button>
             </div>
           </div>

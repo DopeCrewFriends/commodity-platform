@@ -1,4 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { PublicKey, Transaction, type SendOptions } from '@solana/web3.js';
+import {
+  safeLocalStorageGetItem,
+  safeLocalStorageRemoveItem,
+  safeLocalStorageSetItem,
+} from '../utils/storage';
 
 export function useWallet() {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
@@ -34,13 +40,13 @@ export function useWallet() {
           const address = provider.publicKey.toString();
           setWalletAddress(address);
           setIsConnected(true);
-          localStorage.setItem('walletAddress', address);
+          safeLocalStorageSetItem('walletAddress', address);
           return;
         }
       }
 
       // Check localStorage for saved address
-      const savedAddress = localStorage.getItem('walletAddress');
+      const savedAddress = safeLocalStorageGetItem('walletAddress');
       if (savedAddress) {
         setWalletAddress(savedAddress);
         setIsConnected(true);
@@ -59,11 +65,11 @@ export function useWallet() {
         const address = publicKey.toString();
         setWalletAddress(address);
         setIsConnected(true);
-        localStorage.setItem('walletAddress', address);
+        safeLocalStorageSetItem('walletAddress', address);
       } else {
         setWalletAddress(null);
         setIsConnected(false);
-        localStorage.removeItem('walletAddress');
+        safeLocalStorageRemoveItem('walletAddress');
       }
     };
 
@@ -71,7 +77,7 @@ export function useWallet() {
     const handleDisconnect = () => {
       setWalletAddress(null);
       setIsConnected(false);
-      localStorage.removeItem('walletAddress');
+      safeLocalStorageRemoveItem('walletAddress');
     };
 
     if (provider) {
@@ -107,8 +113,8 @@ export function useWallet() {
       
       setWalletAddress(address);
       setIsConnected(true);
-      localStorage.setItem('walletAddress', address);
-      localStorage.setItem('walletConnected', 'true');
+      safeLocalStorageSetItem('walletAddress', address);
+      safeLocalStorageSetItem('walletConnected', 'true');
       
       return address;
     } catch (error: any) {
@@ -136,15 +142,73 @@ export function useWallet() {
     
     setWalletAddress(null);
     setIsConnected(false);
-    localStorage.removeItem('walletAddress');
-    localStorage.removeItem('walletConnected');
+    safeLocalStorageRemoveItem('walletAddress');
+    safeLocalStorageRemoveItem('walletConnected');
+  }, []);
+
+  const chainPublicKey = useMemo(() => {
+    if (!walletAddress) return null;
+    try {
+      return new PublicKey(walletAddress.trim());
+    } catch {
+      return null;
+    }
+  }, [walletAddress]);
+
+  const signTransaction = useCallback(async (tx: Transaction): Promise<Transaction> => {
+    const provider = getPhantomProvider();
+    if (!provider?.signTransaction) {
+      throw new Error('Phantom cannot sign transactions. Update Phantom or use a compatible wallet.');
+    }
+    const signed = await provider.signTransaction(tx);
+    return signed as Transaction;
+  }, []);
+
+  /**
+   * Defined only when Phantom exposes `signAndSendTransaction` (see Phantom “Send a legacy transaction” docs).
+   * Uses the wallet’s sign+broadcast path so pre-sign simulation matches submission more closely than
+   * `signTransaction` + app `sendRawTransaction` when RPCs differ.
+   */
+  const signAndSendTransaction = useMemo(() => {
+    if (typeof window === 'undefined') return undefined;
+    const provider = getPhantomProvider() as {
+      signAndSendTransaction?: (
+        t: Transaction,
+        o?: SendOptions
+      ) => Promise<{ signature: string } | string>;
+    };
+    if (typeof provider?.signAndSendTransaction !== 'function') return undefined;
+    return async (tx: Transaction, options?: SendOptions): Promise<{ signature: string }> => {
+      const result = await provider.signAndSendTransaction!(tx, options);
+      const signature = typeof result === 'string' ? result : result.signature;
+      return { signature };
+    };
+  }, [isConnected]);
+
+  const signAllTransactions = useCallback(async (txs: Transaction[]): Promise<Transaction[]> => {
+    const provider = getPhantomProvider();
+    if (provider?.signAllTransactions) {
+      return (await provider.signAllTransactions(txs)) as Transaction[];
+    }
+    if (!provider?.signTransaction) {
+      throw new Error('Wallet cannot sign transactions');
+    }
+    const out: Transaction[] = [];
+    for (const t of txs) {
+      out.push((await provider.signTransaction!(t)) as Transaction);
+    }
+    return out;
   }, []);
 
   return {
     walletAddress,
     isConnected,
     connect,
-    disconnect
+    disconnect,
+    chainPublicKey,
+    signTransaction,
+    signAndSendTransaction,
+    signAllTransactions,
   };
 }
 
