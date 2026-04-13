@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { ProfileData, Statistics } from '../types';
+import { useBalances } from '../hooks/useBalances';
+import { useTradeHistory } from '../hooks/useTradeHistory';
+import { useEscrows } from '../hooks/useEscrows';
 import ProfileCard from './ProfileCard';
+import BalancesSection from './BalancesSection';
 import EditProfileModal from './EditProfileModal';
 
 interface AccountPageProps {
@@ -20,38 +24,65 @@ const AccountPage: React.FC<AccountPageProps> = ({
   checkUsernameAvailability
 }) => {
   const [showEditModal, setShowEditModal] = useState(false);
+  const { balances, solPrice, loading, priceLoading } = useBalances(walletAddress);
+  const { tradeHistory } = useTradeHistory(walletAddress);
+  const { escrowsData } = useEscrows(walletAddress);
 
   if (!profileData) {
     return (
-      <div className="portfolio-dashboard dash-inst" id="account">
+      <main className="portfolio-dashboard dash-inst" id="account">
         <div className="dash-inst-container">
-          <p className="dash-inst-kicker" style={{ marginTop: '1rem' }}>
-            Account
-          </p>
-          <p>Loading profile…</p>
+          <header className="dash-inst-header">
+            <div>
+              <p className="dash-inst-kicker">Profile</p>
+              <h1 className="dash-inst-title">Account</h1>
+            </div>
+          </header>
+          <p className="dash-inst-header__lede">Loading profile…</p>
         </div>
-      </div>
+      </main>
     );
   }
 
   return (
     <>
-      <div className="portfolio-dashboard dash-inst" id="account">
+      <main className="portfolio-dashboard dash-inst" id="account">
         <div className="dash-inst-container">
-          <header className="page-rail-header page-rail-header--flush">
-            <h1>Account</h1>
-            <p>Profile details and statistics for your organisation record.</p>
+          <header className="dash-inst-header">
+            <div>
+              <p className="dash-inst-kicker">Profile</p>
+              <h1 className="dash-inst-title">Account</h1>
+              <p className="dash-inst-header__lede">
+                Profile details and statistics for your organisation record.
+              </p>
+            </div>
           </header>
-          <div style={{ maxWidth: '800px' }}>
-            <ProfileCard
-              profileData={profileData}
-              statistics={statistics}
-              onEditClick={() => setShowEditModal(true)}
-              walletAddress={walletAddress}
-            />
+          <div className="dash-inst-stack">
+            <div className="dash-inst-row dash-inst-row--account">
+              <ProfileCard
+                profileData={profileData}
+                statistics={statistics}
+                onEditClick={() => setShowEditModal(true)}
+                walletAddress={walletAddress}
+                tradeHistory={tradeHistory}
+                escrows={escrowsData.items}
+              />
+              <BalancesSection balances={balances} solPrice={solPrice} loading={loading} priceLoading={priceLoading} />
+            </div>
+            <section className="account-funds-actions" aria-label="Deposit and withdraw">
+              <p className="account-funds-actions__label">Move funds</p>
+              <div className="account-funds-actions__buttons">
+                <button type="button" className="btn btn-primary">
+                  Deposit
+                </button>
+                <button type="button" className="btn btn-secondary">
+                  Withdraw
+                </button>
+              </div>
+            </section>
           </div>
         </div>
-      </div>
+      </main>
 
       {showEditModal && profileData && (
         <EditProfileModal

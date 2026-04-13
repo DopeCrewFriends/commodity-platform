@@ -604,6 +604,69 @@ body.wallet-modal-open > *:not(.wallet-modal):not(.profile-completion-modal):not
     margin-bottom: 0;
 }
 
+.balance-panel__card--locked {
+    overflow: hidden;
+}
+
+.balance-panel__locked-inner {
+    position: relative;
+    min-height: 220px;
+}
+
+.balance-panel__lock-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    z-index: 6;
+    background: color-mix(in srgb, var(--card-bg) 50%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: inherit;
+}
+
+.balance-panel__lock-overlay-inner {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.65rem;
+    max-width: 17rem;
+}
+
+.balance-panel__lock-overlay-inner .btn {
+    width: 100%;
+    max-width: 100%;
+}
+
+.balance-panel__mask {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.06em;
+    user-select: none;
+}
+
+.public-profile-shared-trades {
+    margin-top: var(--section-gap, 1.25rem);
+    width: 100%;
+}
+
+.public-profile-balance-hint {
+    margin: 0;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: var(--text-light);
+}
+
+.public-profile-balance-hint--error {
+    color: #dc2626;
+}
+
+[data-theme="dark"] .public-profile-balance-hint--error {
+    color: #f87171;
+}
+
 /* Shared Header Card Styles - Consolidated */
 .balances-header-card,
 .contacts-header-card,
@@ -2570,18 +2633,34 @@ body.wallet-modal-open > *:not(.wallet-modal):not(.profile-completion-modal):not
 }
 .escrow-card:hover {
     border-color: var(--border-color);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.06),
+        inset 0 0 0 9999px rgba(0, 0, 0, 0.055);
 }
 .escrow-card-expanded {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+.escrow-card-expanded:hover {
+    box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.06),
+        inset 0 0 0 9999px rgba(0, 0, 0, 0.055);
 }
 [data-theme="dark"] .escrow-card {
     background: var(--card-bg);
     border-color: var(--border-color);
 }
-[data-theme="dark"] .escrow-card:hover,
+[data-theme="dark"] .escrow-card:hover {
+    box-shadow:
+        0 2px 12px rgba(0, 0, 0, 0.25),
+        inset 0 0 0 9999px rgba(0, 0, 0, 0.12);
+}
 [data-theme="dark"] .escrow-card-expanded {
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+}
+[data-theme="dark"] .escrow-card-expanded:hover {
+    box-shadow:
+        0 2px 12px rgba(0, 0, 0, 0.25),
+        inset 0 0 0 9999px rgba(0, 0, 0, 0.12);
 }
 
 /* Status accent bar (left edge) */
@@ -2603,8 +2682,32 @@ body.wallet-modal-open > *:not(.wallet-modal):not(.profile-completion-modal):not
 [data-theme="dark"] .escrow-card[data-status="cancelled"] .escrow-card__accent { background: #f87171; }
 [data-theme="dark"] .escrow-card[data-status="unsuccessful"] .escrow-card__accent { background: #f87171; }
 
+.escrow-card-hit-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
 .escrow-card__inner {
     margin-left: 3px;
+}
+
+.escrow-card__inner--interactive {
+    position: relative;
+    z-index: 2;
+    pointer-events: none;
+}
+
+.escrow-card__inner--interactive .escrow-card-header,
+.escrow-card__inner--interactive button,
+.escrow-card__inner--interactive a {
+    pointer-events: auto;
+    cursor: pointer;
 }
 
 .escrow-card-header {
@@ -2700,10 +2803,61 @@ body.wallet-modal-open > *:not(.wallet-modal):not(.profile-completion-modal):not
     flex-wrap: wrap;
 }
 .escrow-party {
+    position: relative;
+    min-width: 0;
+}
+
+.escrow-party__surface {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     min-width: 0;
+    position: relative;
+    z-index: 2;
+    pointer-events: none;
+}
+
+.escrow-party-hit {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: 6px;
+    text-decoration: none;
+}
+
+.escrow-party--profile-hit {
+    cursor: pointer;
+}
+
+.escrow-party--profile-hit:hover .escrow-party__surface {
+    opacity: 0.92;
+}
+
+.escrow-party--profile-hit::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 50%;
+    top: calc(100% + 4px);
+    transform: translateX(-50%);
+    padding: 0.28rem 0.45rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--surface-card, var(--white));
+    background: var(--text-dark);
+    border-radius: 6px;
+    box-shadow: var(--shadow, 0 2px 8px rgba(0, 0, 0, 0.15));
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.12s ease, visibility 0.12s ease;
+    z-index: 10;
+}
+
+.escrow-party--profile-hit:hover::after {
+    opacity: 1;
+    visibility: visible;
 }
 .escrow-party-avatar {
     width: 36px;
@@ -2744,6 +2898,22 @@ body.wallet-modal-open > *:not(.wallet-modal):not(.profile-completion-modal):not
     font-size: 1rem;
     opacity: 0.5;
     flex-shrink: 0;
+}
+
+.profile-username-link {
+    border-radius: 4px;
+}
+a.profile-username-link {
+    text-decoration: none;
+    color: inherit;
+    transition: color 0.15s ease, opacity 0.15s ease;
+}
+a.profile-username-link:hover {
+    color: var(--primary-color);
+}
+a.profile-username-link:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
 }
 
 .escrow-timeline-wrap {
@@ -6033,7 +6203,10 @@ section {
     border: 1px solid var(--border-color);
     border-radius: 8px;
     overflow: hidden;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        transform 0.2s ease;
 }
 
 .contact-card:hover {
@@ -6043,6 +6216,81 @@ section {
 
 [data-theme="dark"] .contact-card:hover {
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+}
+
+.contact-card--clickable {
+    cursor: pointer;
+    overflow: hidden;
+    z-index: 0;
+}
+
+/* Custom tooltip inside card (avoids clip from .contacts-content overflow-y: auto; native title on empty links is unreliable) */
+.contact-card--clickable::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    right: 0.5rem;
+    bottom: 0.4rem;
+    padding: 0.28rem 0.45rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--surface-card, var(--white));
+    background: var(--text-dark);
+    border-radius: 6px;
+    box-shadow: var(--shadow, 0 2px 8px rgba(0, 0, 0, 0.15));
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.12s ease, visibility 0.12s ease;
+    z-index: 30;
+}
+
+.contact-card--clickable:hover:not(:has(.contact-card__remove:hover))::after {
+    opacity: 1;
+    visibility: visible;
+}
+
+.contact-card--clickable:hover {
+    z-index: 1;
+    border-color: color-mix(in srgb, var(--primary-color) 45%, var(--border-color));
+    box-shadow:
+        0 4px 14px rgba(0, 0, 0, 0.08),
+        0 0 0 1px color-mix(in srgb, var(--primary-color) 18%, transparent);
+    transform: translateY(-2px);
+}
+
+.contact-card--clickable:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="dark"] .contact-card--clickable:hover {
+    box-shadow:
+        0 6px 20px rgba(0, 0, 0, 0.35),
+        0 0 0 1px color-mix(in srgb, var(--primary-color) 25%, transparent);
+}
+
+.contact-card__hit-area {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: inherit;
+}
+
+.contact-card--clickable .contact-card__inner {
+    position: relative;
+    z-index: 2;
+    pointer-events: none;
+}
+
+.contact-card--clickable .contact-card__inner * {
+    pointer-events: none;
+}
+
+.contact-card--clickable .contact-card__remove {
+    pointer-events: auto;
+    cursor: pointer;
 }
 
 .contact-card__accent {

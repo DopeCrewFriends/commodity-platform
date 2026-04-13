@@ -7,6 +7,7 @@ import { getEscrowStatusDisplayLabel, getEscrowStepDisplayLabel } from '../utils
 import { isEscrowActiveForPanel } from '../utils/escrowTradeHistory';
 import { useProfilesCache } from '../hooks/useProfilesCache';
 import CreateEscrowModal from './CreateEscrowModal';
+import EscrowPartyBlock from './EscrowPartyBlock';
 import { useAuth } from '../hooks/useAuth';
 
 export type PhantomSignTransaction = (tx: Transaction) => Promise<Transaction>;
@@ -255,7 +256,12 @@ const EscrowsSection: React.FC<EscrowsSectionProps> = ({
                     data-status={escrow.status}
                   >
                     <div className="escrow-card__accent" aria-hidden />
-                    <div className="escrow-card__inner">
+                    <div
+                      className="escrow-card-hit-layer"
+                      aria-hidden="true"
+                      onClick={() => toggleExpanded(id)}
+                    />
+                    <div className="escrow-card__inner escrow-card__inner--interactive">
                       <button
                         type="button"
                         className="escrow-card-header"
@@ -287,27 +293,21 @@ const EscrowsSection: React.FC<EscrowsSectionProps> = ({
                         hidden={!isExpanded}
                       >
                       <div className="escrow-card-parties">
-                        <div className="escrow-party buyer">
-                          <div className="escrow-party-avatar">{buyerInitials}</div>
-                          <div className="escrow-party-info">
-                            <span className="escrow-party-role">Buyer</span>
-                            <span className="escrow-party-name">
-                              {buyerProfile?.name || 'Unknown'}
-                              {buyerProfile?.username && <span className="escrow-party-username">@{buyerProfile.username}</span>}
-                            </span>
-                          </div>
-                        </div>
+                        <EscrowPartyBlock
+                          partyClass="buyer"
+                          roleLabel="Buyer"
+                          initials={buyerInitials}
+                          displayName={buyerProfile?.name || 'Unknown'}
+                          username={buyerProfile?.username}
+                        />
                         <span className="escrow-party-arrow" aria-hidden>↔</span>
-                        <div className="escrow-party seller">
-                          <div className="escrow-party-avatar">{sellerInitials}</div>
-                          <div className="escrow-party-info">
-                            <span className="escrow-party-role">Seller</span>
-                            <span className="escrow-party-name">
-                              {sellerProfile?.name || 'Unknown'}
-                              {sellerProfile?.username && <span className="escrow-party-username">@{sellerProfile.username}</span>}
-                            </span>
-                          </div>
-                        </div>
+                        <EscrowPartyBlock
+                          partyClass="seller"
+                          roleLabel="Seller"
+                          initials={sellerInitials}
+                          displayName={sellerProfile?.name || 'Unknown'}
+                          username={sellerProfile?.username}
+                        />
                       </div>
 
                       <div className="escrow-timeline-wrap">
@@ -374,8 +374,8 @@ const EscrowsSection: React.FC<EscrowsSectionProps> = ({
                           const cancelSigned = escrow.cancel_signed_by ?? [];
                           const completeCount = completeSigned.length;
                           const cancelCount = cancelSigned.length;
-                          const hasSignedComplete = completeSigned.includes(me);
-                          const hasSignedCancel = cancelSigned.includes(me);
+                          const hasSignedComplete = completeSigned.some((w) => w.trim() === me);
+                          const hasSignedCancel = cancelSigned.some((w) => w.trim() === me);
                           return (
                             <div className="escrow-two-party">
                               <p className="escrow-two-party-intro">

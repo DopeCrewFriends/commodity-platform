@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ProfileData, Statistics } from '../types';
 import { loadUserData } from '../utils/storage';
 import { supabase } from '../utils/supabase';
+import { formatMemberSince } from '../utils/profileStats';
 import { useAuth } from './useAuth';
 
 /**
@@ -30,6 +31,13 @@ export function useProfile(skipLoadUntilComplete: boolean = false, walletAddress
     if (!walletAddress) {
       if (mounted) {
         setProfileData(null);
+        setStatistics({
+          memberSince: null,
+          completedTrades: 0,
+          totalVolume: 0,
+          successRate: null,
+          rating: null
+        });
         setLoading(true); // Set loading to true when wallet disconnects
         setHasInitialized(false);
       }
@@ -95,6 +103,14 @@ export function useProfile(skipLoadUntilComplete: boolean = false, walletAddress
                 avatarImage: '',
                 username: ''
               });
+              const savedStats = loadUserData<Statistics>(walletAddress, 'statistics');
+              setStatistics({
+                memberSince: savedStats?.memberSince ?? null,
+                completedTrades: 0,
+                totalVolume: 0,
+                successRate: null,
+                rating: savedStats?.rating ?? null
+              });
             }
           } else {
             throw error;
@@ -108,7 +124,20 @@ export function useProfile(skipLoadUntilComplete: boolean = false, walletAddress
             location: data.location,
             walletAddress: data.wallet_address || walletAddress,
             avatarImage: data.avatar_image,
-            username: data.username
+            username: data.username,
+            profileCreatedAt: (data as { created_at?: string }).created_at ?? null,
+            rating: (data as { rating?: number | null }).rating ?? null,
+          });
+
+          const savedStats = loadUserData<Statistics>(walletAddress, 'statistics');
+          const fromProfile = formatMemberSince((data as { created_at?: string }).created_at);
+          const dbRating = (data as { rating?: number | null }).rating;
+          setStatistics({
+            memberSince: fromProfile ?? savedStats?.memberSince ?? null,
+            completedTrades: 0,
+            totalVolume: 0,
+            successRate: null,
+            rating: dbRating ?? savedStats?.rating ?? null,
           });
         }
       } catch (error: any) {
@@ -123,6 +152,14 @@ export function useProfile(skipLoadUntilComplete: boolean = false, walletAddress
             avatarImage: '',
             username: ''
           });
+          const savedStats = loadUserData<Statistics>(walletAddress, 'statistics');
+          setStatistics({
+            memberSince: savedStats?.memberSince ?? null,
+            completedTrades: 0,
+            totalVolume: 0,
+            successRate: null,
+            rating: savedStats?.rating ?? null
+          });
         }
       } finally {
         // Always clear loading so we never get stuck on "Loading profile..."
@@ -135,10 +172,13 @@ export function useProfile(skipLoadUntilComplete: boolean = false, walletAddress
 
       if (!mounted) return;
 
-      // Load statistics from localStorage (statistics are still local-only)
+      // Merge stored rating / legacy member date if DB row did not include created_at
       const savedStats = loadUserData<Statistics>(walletAddress, 'statistics');
-      if (savedStats && mounted) {
-        setStatistics(savedStats);
+      if (savedStats) {
+        setStatistics((prev) => ({
+          ...prev,
+          memberSince: prev.memberSince ?? savedStats.memberSince ?? null
+        }));
       }
     };
 
@@ -198,7 +238,9 @@ export function useProfile(skipLoadUntilComplete: boolean = false, walletAddress
           location: savedProfile.location,
           walletAddress: savedProfile.wallet_address || walletAddress,
           avatarImage: savedProfile.avatar_image,
-          username: savedProfile.username
+          username: savedProfile.username,
+          profileCreatedAt: (savedProfile as { created_at?: string }).created_at ?? profileData?.profileCreatedAt ?? null,
+          rating: (savedProfile as { rating?: number | null }).rating ?? profileData?.rating ?? null,
         });
       }
     } catch (error: any) {

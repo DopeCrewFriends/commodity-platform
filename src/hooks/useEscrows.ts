@@ -5,6 +5,14 @@ import { supabase } from '../utils/supabase';
 import { normalizeEscrowStatus, isActiveEscrowStatus } from '../utils/escrowStatus';
 import { parseEscrowChainTransactions } from '../utils/escrowChainMeta';
 import { reconcileEscrowWithOnChainState } from '../utils/escrowChain';
+
+function signingOrChainTxChanged(a: Escrow, b: Escrow): boolean {
+  return (
+    JSON.stringify(a.complete_signed_by ?? []) !== JSON.stringify(b.complete_signed_by ?? []) ||
+    JSON.stringify(a.cancel_signed_by ?? []) !== JSON.stringify(b.cancel_signed_by ?? []) ||
+    JSON.stringify(a.chainTransactions ?? null) !== JSON.stringify(b.chainTransactions ?? null)
+  );
+}
 import { isEscrowActiveForPanel } from '../utils/escrowTradeHistory';
 
 export function useEscrows(walletAddress: string | null) {
@@ -106,6 +114,7 @@ export function useEscrows(walletAddress: string | null) {
                 amount: parseFloat(String(escrow.amount)),
                 status: normalizedStatus,
                 startDate: (escrow.created_at as string) || new Date().toISOString(),
+                updatedAt: escrow.updated_at ? String(escrow.updated_at).trim() : undefined,
                 created_by: escrow.created_by ? String(escrow.created_by).trim() : undefined,
                 paymentMethod: (escrow.payment_method as 'USDT' | 'USDC') || 'USDC',
                 cancelled_by: escrow.cancelled_by ? String(escrow.cancelled_by).trim() : undefined,
@@ -130,13 +139,23 @@ export function useEscrows(walletAddress: string | null) {
           if (cancelledRef.current) return;
 
           for (let i = 0; i < escrows.length; i++) {
-            if (escrows[i].status !== escrowsFromDb[i].status) {
-              const { error: syncErr } = await supabase
-                .from('escrows')
-                .update({ status: escrows[i].status, updated_at: new Date().toISOString() })
-                .eq('id', escrows[i].id);
+            const statusChanged = escrows[i].status !== escrowsFromDb[i].status;
+            const metaChanged = signingOrChainTxChanged(escrows[i], escrowsFromDb[i]);
+            if (statusChanged || metaChanged) {
+              const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+              if (statusChanged) patch.status = escrows[i].status;
+              if (JSON.stringify(escrows[i].complete_signed_by ?? []) !== JSON.stringify(escrowsFromDb[i].complete_signed_by ?? [])) {
+                patch.complete_signed_by = escrows[i].complete_signed_by ?? [];
+              }
+              if (JSON.stringify(escrows[i].cancel_signed_by ?? []) !== JSON.stringify(escrowsFromDb[i].cancel_signed_by ?? [])) {
+                patch.cancel_signed_by = escrows[i].cancel_signed_by ?? [];
+              }
+              if (JSON.stringify(escrows[i].chainTransactions ?? null) !== JSON.stringify(escrowsFromDb[i].chainTransactions ?? null)) {
+                patch.chain_transactions = escrows[i].chainTransactions ?? null;
+              }
+              const { error: syncErr } = await supabase.from('escrows').update(patch).eq('id', escrows[i].id);
               if (syncErr && syncErr.code !== 'PGRST205' && syncErr.code !== '42P01') {
-                console.warn('Could not sync reconciled escrow status to Supabase:', escrows[i].id, syncErr);
+                console.warn('Could not sync reconciled escrow row to Supabase:', escrows[i].id, syncErr);
               }
             }
           }

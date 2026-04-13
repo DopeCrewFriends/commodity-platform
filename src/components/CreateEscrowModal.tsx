@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { PublicKey, Transaction, type SendOptions } from '@solana/web3.js';
 import BN from 'bn.js';
 import { useContacts } from '../hooks/useContacts';
+import { useContactProfileHover } from '../hooks/useContactProfileHover';
 import { Contact, EscrowsData, Escrow } from '../types';
 import { getInitials } from '../utils/storage';
 import { supabase } from '../utils/supabase';
@@ -51,6 +52,7 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
   updateEscrows,
 }) => {
   const { contacts, searchQuery, setSearchQuery } = useContacts();
+  const profileHover = useContactProfileHover();
   const confirmInFlight = useRef(false);
   const [chainBusy, setChainBusy] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
@@ -309,6 +311,7 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
   return (
     <div className="wallet-modal active" onClick={onClose}>
       <div className="wallet-modal-overlay"></div>
+      {profileHover.hoverLayer}
       <div className="wallet-modal-content modal-wide" onClick={(e) => e.stopPropagation()}>
         <div className="wallet-modal-header">
           <h2>Create Escrow</h2>
@@ -357,6 +360,10 @@ const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
                           }
                         }}
                         className={`cem-contact-row${isSelected ? ' is-selected' : ''}`}
+                        onMouseEnter={(e) => profileHover.onRowMouseEnter(e, contact)}
+                        onMouseLeave={profileHover.onRowMouseLeave}
+                        onFocus={(e) => profileHover.onRowFocus(e, contact)}
+                        onBlur={profileHover.onRowBlur}
                       >
                         <div className="cem-contact-avatar contact-avatar">{initials}</div>
                         <div className="cem-contact-body">

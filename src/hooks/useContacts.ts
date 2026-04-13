@@ -97,14 +97,16 @@ export function useContacts() {
       if (profilesError) throw profilesError;
 
       // Map to ProfileData format
-      const mappedContacts: ProfileData[] = (profiles || []).map(profile => ({
+      const mappedContacts: ProfileData[] = (profiles || []).map((profile) => ({
         name: profile.name,
         email: profile.email,
         company: profile.company,
         location: profile.location,
         walletAddress: profile.wallet_address || '',
         avatarImage: profile.avatar_image,
-        username: profile.username
+        username: profile.username,
+        profileCreatedAt: (profile as { created_at?: string }).created_at ?? null,
+        rating: (profile as { rating?: number | null }).rating ?? null,
       }));
 
       // Update cache and state
@@ -320,14 +322,16 @@ export function useContacts() {
 
       if (error) throw error;
 
-      return (data || []).map(profile => ({
+      return (data || []).map((profile) => ({
         name: profile.name,
         email: profile.email,
         company: profile.company,
         location: profile.location,
         walletAddress: profile.wallet_address || '',
         avatarImage: profile.avatar_image,
-        username: profile.username
+        username: profile.username,
+        profileCreatedAt: (profile as { created_at?: string }).created_at ?? null,
+        rating: (profile as { rating?: number | null }).rating ?? null,
       }));
     } catch (error) {
       console.error('Error searching users:', error);
@@ -352,14 +356,16 @@ export function useContacts() {
 
       if (error) throw error;
 
-      return (data || []).map(profile => ({
+      return (data || []).map((profile) => ({
         name: profile.name,
         email: profile.email,
         company: profile.company,
         location: profile.location,
         walletAddress: profile.wallet_address || '',
         avatarImage: profile.avatar_image,
-        username: profile.username
+        username: profile.username,
+        profileCreatedAt: (profile as { created_at?: string }).created_at ?? null,
+        rating: (profile as { rating?: number | null }).rating ?? null,
       }));
     } catch (error) {
       console.error('Error fetching top users:', error);
@@ -378,6 +384,8 @@ export function useContacts() {
 
   return {
     contacts: filteredContacts,
+    /** Full contact list (ignores search). Use for membership checks, e.g. public profile balances. */
+    allContacts: contacts,
     totalContacts: contacts.length,
     searchQuery,
     setSearchQuery,

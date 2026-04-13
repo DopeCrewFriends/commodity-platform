@@ -11,8 +11,17 @@ import {
   pollOnChainEscrowResolved,
 } from '../utils/escrowChain';
 import { isEscrowActiveForPanel } from '../utils/escrowTradeHistory';
+import { normalizeEscrowSigningForStatus } from '../utils/escrowChain';
 
 type EscrowAction = 'accept' | 'reject' | 'cancel' | 'complete' | 'sign_complete' | 'sign_cancel';
+
+function mapEscrowItemsWithId(
+  items: EscrowsData['items'],
+  escrowId: string,
+  patch: (e: (typeof items)[0]) => (typeof items)[0]
+): EscrowsData['items'] {
+  return items.map((e) => (e.id === escrowId ? patch(e) : e));
+}
 
 function useChainForEscrow(escrow: { paymentMethod?: string; chainEscrowPda?: string; chainNonce?: string }): boolean {
   return Boolean(
@@ -93,8 +102,19 @@ export function useEscrowChainActions(
               ...chainTransactions,
               voteComplete: prev.includes(sig) ? prev : [...prev, sig],
             };
-            if (!completeSignedBy.includes(me)) completeSignedBy = [...completeSignedBy, me];
+            if (!completeSignedBy.some((w) => w.trim() === me)) completeSignedBy = [...completeSignedBy, me];
             cancelSignedBy = cancelSignedBy.filter((w) => w.trim() !== me);
+
+            const interim = mapEscrowItemsWithId(escrowsData.items, escrowId, (e) => ({
+              ...e,
+              complete_signed_by: completeSignedBy,
+              cancel_signed_by: cancelSignedBy,
+              chainTransactions: { ...chainTransactions },
+              status: newStatus,
+            }));
+            const interimTotal = interim.filter(isEscrowActiveForPanel).reduce((sum, e) => sum + e.amount, 0);
+            await updateEscrows({ totalAmount: interimTotal, items: interim });
+
             const poll = await pollOnChainEscrowResolved(pda, 'complete');
             if (poll === 'mismatch') {
               window.alert(ONCHAIN_VOTE_MISMATCH_HINT);
@@ -111,8 +131,19 @@ export function useEscrowChainActions(
               ...chainTransactions,
               voteCancel: prev.includes(sig) ? prev : [...prev, sig],
             };
-            if (!cancelSignedBy.includes(me)) cancelSignedBy = [...cancelSignedBy, me];
+            if (!cancelSignedBy.some((w) => w.trim() === me)) cancelSignedBy = [...cancelSignedBy, me];
             completeSignedBy = completeSignedBy.filter((w) => w.trim() !== me);
+
+            const interim = mapEscrowItemsWithId(escrowsData.items, escrowId, (e) => ({
+              ...e,
+              complete_signed_by: completeSignedBy,
+              cancel_signed_by: cancelSignedBy,
+              chainTransactions: { ...chainTransactions },
+              status: newStatus,
+            }));
+            const interimTotal = interim.filter(isEscrowActiveForPanel).reduce((sum, e) => sum + e.amount, 0);
+            await updateEscrows({ totalAmount: interimTotal, items: interim });
+
             const poll = await pollOnChainEscrowResolved(pda, 'cancel');
             if (poll === 'mismatch') {
               window.alert(ONCHAIN_VOTE_MISMATCH_HINT);
@@ -142,10 +173,10 @@ export function useEscrowChainActions(
             newStatus = 'cancelled';
             cancelledBy = me;
           } else if (action === 'sign_complete') {
-            if (!completeSignedBy.includes(me)) completeSignedBy = [...completeSignedBy, me];
+            if (!completeSignedBy.some((w) => w.trim() === me)) completeSignedBy = [...completeSignedBy, me];
             if (completeSignedBy.length >= 2) newStatus = 'completed';
           } else if (action === 'sign_cancel') {
-            if (!cancelSignedBy.includes(me)) cancelSignedBy = [...cancelSignedBy, me];
+            if (!cancelSignedBy.some((w) => w.trim() === me)) cancelSignedBy = [...cancelSignedBy, me];
             if (cancelSignedBy.length >= 2) newStatus = 'cancelled';
           } else if (action === 'complete') {
             newStatus = 'completed';
@@ -166,25 +197,14 @@ export function useEscrowChainActions(
         basePayload.complete_signed_by = completeSignedBy;
         basePayload.cancel_signed_by = cancelSignedBy;
       }
+      if (chainOk && Object.keys(chainTransactions).length > 0) {
+        basePayload.chain_transactions = chainTransactions;
+      }
 
       try {
         const { error } = await supabase.from('escrows').update(basePayload).eq('id', escrowId);
         if (error && error.code !== 'PGRST205' && error.code !== '42P01') {
           console.warn('Error updating escrow in Supabase:', error);
-        } else if (
-          chainOk &&
-          Object.keys(chainTransactions).length > 0
-        ) {
-          const { error: txErr } = await supabase
-            .from('escrows')
-            .update({
-              chain_transactions: chainTransactions,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', escrowId);
-          if (txErr && txErr.code !== 'PGRST205' && txErr.code !== '42P01') {
-            console.warn('chain_transactions update failed (status was saved):', escrowId, txErr);
-          }
         }
       } catch {
         /* ignore */
@@ -192,7 +212,7 @@ export function useEscrowChainActions(
 
       const updatedEscrows = escrowsData.items.map((e) => {
         if (e.id !== escrowId) return e;
-        return {
+        const merged = {
           ...e,
           status: newStatus,
           cancelled_by: cancelledBy ?? e.cancelled_by,
@@ -200,6 +220,7 @@ export function useEscrowChainActions(
           cancel_signed_by: cancelSignedBy,
           chainTransactions: chainOk ? chainTransactions : e.chainTransactions,
         };
+        return normalizeEscrowSigningForStatus(merged);
       });
 
       const totalAmount = updatedEscrows

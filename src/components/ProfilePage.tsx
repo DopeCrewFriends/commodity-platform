@@ -132,6 +132,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                   statistics={statistics}
                   onEditClick={() => setShowEditModal(true)}
                   walletAddress={walletAddress}
+                  tradeHistory={tradeHistory}
+                  escrows={escrowsData.items}
                 />
                 <BalancesSection balances={balances} solPrice={solPrice} loading={loading} priceLoading={priceLoading} />
               </div>

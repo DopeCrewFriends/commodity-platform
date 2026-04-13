@@ -275,18 +275,35 @@ export function inferEscrowStatusWhenAccountClosed(escrow: Escrow): EscrowStatus
   if ((ct?.voteComplete?.length ?? 0) >= 2) return 'completed';
   if ((escrow.complete_signed_by?.length ?? 0) >= 2) return 'completed';
   if ((escrow.cancel_signed_by?.length ?? 0) >= 2) return 'cancelled';
+  /**
+   * PDA is already closed but we only stored one `vote_complete` sig in the app (or poll timed out
+   * before the second landed). Typical successful release still closes the account — treat as completed
+   * when we were in-flight on complete, not on a cancel/reject path.
+   */
+  if (
+    escrow.status === 'ongoing' &&
+    (ct?.voteComplete?.length ?? 0) >= 1 &&
+    (ct?.voteCancel?.length ?? 0) < 2 &&
+    !ct?.reject &&
+    !ct?.buyerCancel
+  ) {
+    return 'completed';
+  }
   return null;
 }
 
 /**
  * Poll after a vote tx: Released(5) / Returned(6), account closed, or vote mismatch.
+ * Uses more attempts + slightly longer spacing so RPC/commitment lag doesn’t yield false `open`.
  */
 export async function pollOnChainEscrowResolved(
   pdaStr: string,
   mode: 'complete' | 'cancel'
 ): Promise<'finalized' | 'mismatch' | 'open'> {
   const wantStatus = mode === 'complete' ? 5 : 6;
-  for (let i = 0; i < 12; i++) {
+  const maxAttempts = 36;
+  const delayMs = 400;
+  for (let i = 0; i < maxAttempts; i++) {
     try {
       const { program } = await getEscrowProgram();
       const ed = await fetchEscrowAccountData(program, new PublicKey(pdaStr.trim()));
@@ -296,10 +313,31 @@ export async function pollOnChainEscrowResolved(
     } catch {
       if (await isEscrowPdaAccountClosed(pdaStr)) return 'finalized';
     }
-    await new Promise((r) => setTimeout(r, 300));
+    await new Promise((r) => setTimeout(r, delayMs));
   }
   if (await isEscrowPdaAccountClosed(pdaStr)) return 'finalized';
   return 'open';
+}
+
+/** When status is terminal, align app signing arrays so the dashboard matches chain reality. */
+export function normalizeEscrowSigningForStatus(escrow: Escrow): Escrow {
+  const b = escrow.buyer.trim();
+  const s = escrow.seller.trim();
+  const ct = escrow.chainTransactions;
+
+  if (escrow.status === 'completed') {
+    const signed = new Set((escrow.complete_signed_by ?? []).map((w) => w.trim()));
+    if (signed.has(b) && signed.has(s)) return escrow;
+    return { ...escrow, complete_signed_by: [b, s], cancel_signed_by: [] };
+  }
+
+  if (escrow.status === 'cancelled' && (ct?.voteCancel?.length ?? 0) >= 2) {
+    const signed = new Set((escrow.cancel_signed_by ?? []).map((w) => w.trim()));
+    if (signed.has(b) && signed.has(s)) return escrow;
+    return { ...escrow, cancel_signed_by: [b, s], complete_signed_by: [] };
+  }
+
+  return escrow;
 }
 
 /**
@@ -311,20 +349,32 @@ export async function reconcileEscrowWithOnChainState(escrow: Escrow): Promise<E
   if (!isOnChainEscrowConfigured()) return escrow;
   if (escrow.paymentMethod !== 'USDC' || !escrow.chainEscrowPda?.trim()) return escrow;
   const pda = escrow.chainEscrowPda.trim();
+  let next: Escrow = escrow;
+
   try {
     const { program } = await getEscrowProgram();
     const ed = await fetchEscrowAccountData(program, new PublicKey(pda));
     const fromChain = mapChainStatusToEscrowStatus(Number(ed.status));
     if (fromChain && fromChain !== escrow.status) {
-      return { ...escrow, status: fromChain };
+      next = { ...escrow, status: fromChain };
     }
   } catch {
     if (await isEscrowPdaAccountClosed(pda)) {
       const inferred = inferEscrowStatusWhenAccountClosed(escrow);
       if (inferred && inferred !== escrow.status) {
-        return { ...escrow, status: inferred };
+        next = { ...escrow, status: inferred };
       }
     }
+  }
+
+  next = normalizeEscrowSigningForStatus(next);
+  const signingOnlyFix =
+    next.status === escrow.status &&
+    (JSON.stringify(next.complete_signed_by) !== JSON.stringify(escrow.complete_signed_by) ||
+      JSON.stringify(next.cancel_signed_by) !== JSON.stringify(escrow.cancel_signed_by));
+
+  if (next.status !== escrow.status || signingOnlyFix) {
+    return next;
   }
   return escrow;
 }

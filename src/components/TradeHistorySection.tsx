@@ -3,10 +3,15 @@ import { TradeHistory, Trade } from '../types';
 import { getInitials } from '../utils/storage';
 import { useProfilesCache } from '../hooks/useProfilesCache';
 import { flattenTradeHistoryForDisplay } from '../utils/escrowTradeHistory';
+import EscrowPartyBlock from './EscrowPartyBlock';
 
 interface TradeHistorySectionProps {
   tradeHistory: TradeHistory;
   walletAddress: string;
+  /** Panel heading (default: Trade History). */
+  title?: string;
+  /** Message when there are no rows (default: No trades yet). */
+  emptyMessage?: string;
 }
 
 function statusPillLabel(status: Trade['status']): string {
@@ -22,7 +27,12 @@ function statusPillLabel(status: Trade['status']): string {
   }
 }
 
-const TradeHistorySection: React.FC<TradeHistorySectionProps> = ({ tradeHistory, walletAddress }) => {
+const TradeHistorySection: React.FC<TradeHistorySectionProps> = ({
+  tradeHistory,
+  walletAddress,
+  title = 'Trade History',
+  emptyMessage = 'No trades yet',
+}) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const trades = useMemo(() => flattenTradeHistoryForDisplay(tradeHistory), [tradeHistory]);
@@ -49,14 +59,14 @@ const TradeHistorySection: React.FC<TradeHistorySectionProps> = ({ tradeHistory,
       <div className="escrows-header-card" id="tradeHistoryHeaderCard">
         <div className="escrows-header-content">
           <div className="escrows-title-section">
-            <h2>Trade History</h2>
+            <h2>{title}</h2>
           </div>
         </div>
         <div className="active-escrows-content" id="tradeHistoryContent">
           <div className="active-escrows-list" id="tradeHistoryList">
             {trades.length === 0 ? (
               <div className="no-escrows-message" id="noTradesMessage">
-                <p>No trades yet</p>
+                <p>{emptyMessage}</p>
               </div>
             ) : (
               trades.map((trade, index) => {
@@ -82,7 +92,12 @@ const TradeHistorySection: React.FC<TradeHistorySectionProps> = ({ tradeHistory,
                     data-status={trade.status}
                   >
                     <div className="escrow-card__accent" aria-hidden />
-                    <div className="escrow-card__inner">
+                    <div
+                      className="escrow-card-hit-layer"
+                      aria-hidden="true"
+                      onClick={() => toggleExpanded(id)}
+                    />
+                    <div className="escrow-card__inner escrow-card__inner--interactive">
                       <button
                         type="button"
                         className="escrow-card-header"
@@ -104,33 +119,25 @@ const TradeHistorySection: React.FC<TradeHistorySectionProps> = ({ tradeHistory,
 
                       <div id={`trade-body-${id}`} className="escrow-card-body" hidden={!isExpanded}>
                         <div className="escrow-card-parties">
-                          <div className={`escrow-party buyer ${isBuyer ? 'escrow-party--you' : ''}`}>
-                            <div className="escrow-party-avatar">{buyerInitials}</div>
-                            <div className="escrow-party-info">
-                              <span className="escrow-party-role">Buyer{isBuyer ? ' (you)' : ''}</span>
-                              <span className="escrow-party-name">
-                                {buyerProfile?.name || 'Unknown'}
-                                {buyerProfile?.username && (
-                                  <span className="escrow-party-username">@{buyerProfile.username}</span>
-                                )}
-                              </span>
-                            </div>
-                          </div>
+                          <EscrowPartyBlock
+                            partyClass="buyer"
+                            roleLabel={`Buyer${isBuyer ? ' (you)' : ''}`}
+                            initials={buyerInitials}
+                            displayName={buyerProfile?.name || 'Unknown'}
+                            username={buyerProfile?.username}
+                            highlightYou={isBuyer}
+                          />
                           <span className="escrow-party-arrow" aria-hidden>
                             ↔
                           </span>
-                          <div className={`escrow-party seller ${isSeller ? 'escrow-party--you' : ''}`}>
-                            <div className="escrow-party-avatar">{sellerInitials}</div>
-                            <div className="escrow-party-info">
-                              <span className="escrow-party-role">Seller{isSeller ? ' (you)' : ''}</span>
-                              <span className="escrow-party-name">
-                                {sellerProfile?.name || 'Unknown'}
-                                {sellerProfile?.username && (
-                                  <span className="escrow-party-username">@{sellerProfile.username}</span>
-                                )}
-                              </span>
-                            </div>
-                          </div>
+                          <EscrowPartyBlock
+                            partyClass="seller"
+                            roleLabel={`Seller${isSeller ? ' (you)' : ''}`}
+                            initials={sellerInitials}
+                            displayName={sellerProfile?.name || 'Unknown'}
+                            username={sellerProfile?.username}
+                            highlightYou={isSeller}
+                          />
                         </div>
 
                         <div className="trade-history-meta">

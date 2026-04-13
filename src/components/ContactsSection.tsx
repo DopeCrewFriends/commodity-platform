@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useContacts } from '../hooks/useContacts';
 import { getInitials } from '../utils/storage';
+import { Link } from 'react-router-dom';
 import AddContactModal from './AddContactModal';
+import { profilePath } from '../utils/profilePaths';
 
 interface ContactsSectionProps {
   onContactRequestSent?: () => void;
@@ -53,9 +55,21 @@ const ContactsSection: React.FC<ContactsSectionProps> = ({ onContactRequestSent 
                 contacts.map((contact) => {
                   const initials = getInitials(contact.name || '', contact.walletAddress || contact.username || '');
                   const displayName = contact.name || 'Unknown';
+                  const profileUrl = contact.username?.trim() ? profilePath(contact.username) : null;
                   return (
-                    <article key={contact.username || contact.walletAddress} className="contact-card">
+                    <article
+                      key={contact.username || contact.walletAddress}
+                      className={`contact-card${profileUrl ? ' contact-card--clickable' : ''}`}
+                      {...(profileUrl ? { 'data-tooltip': 'View profile' } : {})}
+                    >
                       <div className="contact-card__accent" aria-hidden />
+                      {profileUrl && (
+                        <Link
+                          to={profileUrl}
+                          className="contact-card__hit-area"
+                          aria-label={`View ${displayName}'s profile`}
+                        />
+                      )}
                       <div className="contact-card__inner">
                         <div className="contact-card__main">
                           <div className="contact-card__avatar">{initials}</div>
@@ -69,6 +83,7 @@ const ContactsSection: React.FC<ContactsSectionProps> = ({ onContactRequestSent 
                             type="button"
                             className="contact-card__remove"
                             onClick={async (e) => {
+                              e.preventDefault();
                               e.stopPropagation();
                               await removeContact(contact);
                             }}

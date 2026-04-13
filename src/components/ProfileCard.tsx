@@ -1,17 +1,52 @@
-import React, { useState } from 'react';
-import { ProfileData, Statistics } from '../types';
+import React, { useMemo, useState } from 'react';
+import { Escrow, ProfileData, Statistics, TradeHistory } from '../types';
 import { getInitials } from '../utils/storage';
+import { mergeTradeHistoryWithEscrows } from '../utils/escrowTradeHistory';
+import { computeTradeDerivedStats, formatStatisticDisplay } from '../utils/profileStats';
 
 interface ProfileCardProps {
   profileData: ProfileData;
   statistics: Statistics;
-  onEditClick: () => void;
+  onEditClick?: () => void;
   walletAddress: string;
+  /** When set, completed trades / volume / success rate match merged trade history + escrows (same as the trade panel). */
+  tradeHistory?: TradeHistory;
+  escrows?: Escrow[];
+  /** Hide Edit (e.g. public profile page). */
+  showEditButton?: boolean;
+  /** Public profile copy uses neutral placeholders instead of “Your …”. */
+  profileVariant?: 'self' | 'public';
 }
 
-const ProfileCard: React.FC<ProfileCardProps> = ({ profileData, statistics, onEditClick, walletAddress }) => {
+const ProfileCard: React.FC<ProfileCardProps> = ({
+  profileData,
+  statistics,
+  onEditClick,
+  walletAddress,
+  tradeHistory,
+  escrows = [],
+  showEditButton = true,
+  profileVariant = 'self',
+}) => {
   const [copyFeedback, setCopyFeedback] = useState(false);
-  
+
+  const displayStats = useMemo(() => {
+    if (tradeHistory) {
+      const merged = mergeTradeHistoryWithEscrows(tradeHistory, escrows);
+      const derived = computeTradeDerivedStats(merged, walletAddress);
+      return {
+        ...statistics,
+        completedTrades: derived.completedTrades,
+        totalVolume: derived.totalVolume,
+        successRate: derived.successRate
+      };
+    }
+    return statistics;
+  }, [statistics, tradeHistory, escrows, walletAddress]);
+
+  const pub = profileVariant === 'public';
+  const ph = (selfLabel: string, publicFallback: string) => (pub ? publicFallback : selfLabel);
+
   const initials = profileData.avatarImage 
     ? null 
     : getInitials(profileData.name || '', walletAddress);
@@ -24,20 +59,6 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ profileData, statistics, onEd
     } catch (err) {
       console.error('Failed to copy:', err);
     }
-  };
-
-  const formatStatValue = (value: string | number | null, type: string): string => {
-    if (value === null || value === undefined) return '-';
-    if (type === 'volume') {
-      return `$${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    }
-    if (type === 'rate') {
-      return `${value}%`;
-    }
-    if (type === 'rating') {
-      return `⭐ ${value}/5.0`;
-    }
-    return String(value);
   };
 
   return (
@@ -57,16 +78,23 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ profileData, statistics, onEd
           </div>
           <div className="profile-name-section">
             <h2 className={`profile-name-large ${!profileData.name?.trim() ? 'placeholder-text' : ''}`}>
-              {profileData.name?.trim() || 'Your Name'}
+              {profileData.name?.trim() || ph('Your Name', '—')}
             </h2>
-            {(profileData as any).username && (
-              <span className="username-value-large">@{(profileData as any).username}</span>
-            )}
+            {profileData.username ? (
+              <span className="username-value-large">@{profileData.username}</span>
+            ) : null}
           </div>
         </div>
-        <button className="btn btn-primary edit-profile-btn-new" id="editProfileBtn" onClick={onEditClick}>
-          Edit
-        </button>
+        {showEditButton ? (
+          <button
+            type="button"
+            className="btn btn-primary edit-profile-btn-new"
+            id="editProfileBtn"
+            onClick={() => onEditClick?.()}
+          >
+            Edit
+          </button>
+        ) : null}
       </div>
       
       <div className="profile-info-section">
@@ -74,19 +102,19 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ profileData, statistics, onEd
           <div className="profile-info-item">
             <span className="info-label">Location</span>
             <span className={`info-value ${!profileData.location?.trim() ? 'placeholder-text' : ''}`}>
-              {profileData.location?.trim() || 'Your Location'}
+              {profileData.location?.trim() || ph('Your Location', '—')}
             </span>
           </div>
           <div className="profile-info-item">
             <span className="info-label">Email</span>
             <span className={`info-value ${!profileData.email?.trim() ? 'placeholder-text' : ''}`}>
-              {profileData.email?.trim() || 'your.email@example.com'}
+              {profileData.email?.trim() || ph('your.email@example.com', '—')}
             </span>
           </div>
           <div className="profile-info-item">
             <span className="info-label">Company</span>
             <span className={`info-value ${!profileData.company?.trim() ? 'placeholder-text' : ''}`}>
-              {profileData.company?.trim() || 'Your Company'}
+              {profileData.company?.trim() || ph('Your Company', '—')}
             </span>
           </div>
           <div className="profile-info-item">
@@ -107,27 +135,37 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ profileData, statistics, onEd
         </div>
       </div>
 
-      <div className="profile-stats-section">
-        <div className="profile-stats-grid">
-          <div className="profile-stat-card">
-            <div className="stat-label-new">Member Since</div>
-            <div className="stat-value-new" id="memberSince">{statistics.memberSince || '-'}</div>
+      <div className="profile-stats-section profile-stats-section--inst">
+        <div className="profile-stats-grid profile-stats-grid--inst">
+          <div className="profile-stat-card profile-stat-card--inst">
+            <div className="stat-label-new">Member since</div>
+            <div className="stat-value-new" id="memberSince">
+              {displayStats.memberSince?.trim() ? displayStats.memberSince : '—'}
+            </div>
           </div>
-          <div className="profile-stat-card">
-            <div className="stat-label-new">Completed Trades</div>
-            <div className="stat-value-new" id="completedTrades">{statistics.completedTrades || 0}</div>
+          <div className="profile-stat-card profile-stat-card--inst">
+            <div className="stat-label-new">Completed trades</div>
+            <div className="stat-value-new" id="completedTrades">
+              {displayStats.completedTrades}
+            </div>
           </div>
-          <div className="profile-stat-card">
-            <div className="stat-label-new">Total Volume</div>
-            <div className="stat-value-new" id="totalVolume">{formatStatValue(statistics.totalVolume, 'volume')}</div>
+          <div className="profile-stat-card profile-stat-card--inst">
+            <div className="stat-label-new">Total volume</div>
+            <div className="stat-value-new" id="totalVolume">
+              {formatStatisticDisplay(displayStats.totalVolume, 'volume')}
+            </div>
           </div>
-          <div className="profile-stat-card">
-            <div className="stat-label-new">Success Rate</div>
-            <div className="stat-value-new" id="successRate">{formatStatValue(statistics.successRate, 'rate')}</div>
+          <div className="profile-stat-card profile-stat-card--inst">
+            <div className="stat-label-new">Success rate</div>
+            <div className="stat-value-new" id="successRate">
+              {formatStatisticDisplay(displayStats.successRate, 'rate')}
+            </div>
           </div>
-          <div className="profile-stat-card">
+          <div className="profile-stat-card profile-stat-card--inst">
             <div className="stat-label-new">Rating</div>
-            <div className="stat-value-new" id="rating">{formatStatValue(statistics.rating, 'rating')}</div>
+            <div className="stat-value-new" id="rating">
+              {formatStatisticDisplay(displayStats.rating, 'rating')}
+            </div>
           </div>
         </div>
       </div>

@@ -7,6 +7,10 @@ export interface ProfileData {
   walletAddress: string; // Optional: for backward compatibility
   username: string; // Required - all fields must be filled
   userId?: string; // Optional: user_id from auth (for internal use)
+  /** Supabase `profiles.created_at` (ISO), when fetched — used for member-since display */
+  profileCreatedAt?: string | null;
+  /** Supabase `profiles.rating` (0–5), when fetched */
+  rating?: number | null;
 }
 
 // Contact is now the same as ProfileData - contacts are just profiles with relationships
@@ -40,6 +44,8 @@ export interface Escrow {
   amount: number;
   status: EscrowStatus;
   startDate: string;
+  /** Supabase `updated_at` (ISO) when loaded — used for trade-history ordering */
+  updatedAt?: string;
   created_by?: string; // Wallet address of user who created the escrow
   paymentMethod?: 'USDT' | 'USDC'; // Payment method specified by buyer
   cancelled_by?: string; // Wallet address of user who cancelled/rejected (seller = rejected, buyer = cancelled)
@@ -67,7 +73,10 @@ export interface Trade {
   commodity: string;
   amount: number;
   duration: string;
+  /** Display date (may be locale-formatted). */
   date: string;
+  /** ISO (or parseable) timestamp for sorting; preferred over `date` when set. */
+  sortAt?: string;
   status: 'completed' | 'ongoing' | 'unsuccessful';
 }
 
